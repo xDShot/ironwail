@@ -333,6 +333,24 @@ static void Sky_WindCommand_f (void)
 		return;
 	}
 
+	if (!q_strcasecmp (Cmd_Argv (1), "setview"))
+	{
+		skybox->wind_yaw = cl.viewangles[YAW];
+		skybox->wind_pitch = cl.viewangles[PITCH];
+
+		if (Cmd_Argc () >= 3)
+			skybox->wind_period = atof (Cmd_Argv (2));
+		else if (!skybox->wind_period)
+			skybox->wind_period = 30.f;
+
+		if (Cmd_Argc () >= 4)
+			skybox->wind_dist = CLAMP (-2.0, atof (Cmd_Argv (3)), 2.0);
+		else if (!skybox->wind_dist)
+			skybox->wind_dist = 1.f;
+
+		return;
+	}
+
 	if (!q_strcasecmp (Cmd_Argv (1), "rotate"))
 	{
 		if (Cmd_Argc () < 3)
