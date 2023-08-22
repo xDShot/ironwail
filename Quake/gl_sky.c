@@ -775,7 +775,7 @@ Sky_IsAnimated
 */
 qboolean Sky_IsAnimated (void)
 {
-	return r_skywind.value != 0.f && skybox && skybox->wind_dist > 0.f;
+	return r_skywind.value != 0.f && skybox && skybox->wind_dist != 0.f;
 }
 
 /*
