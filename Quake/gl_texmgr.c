@@ -789,7 +789,7 @@ void TexMgr_LoadPalette (void)
 		else
 		{
 			SetColor (&d_8to24table_alphabright[i],	src[0], src[1], src[2], 255);
-			SetColor (&d_8to24table_fbright[i],		0, 0, 0, 0);
+			SetColor (&d_8to24table_fbright[i],		0, 0, 0, 255);
 			SetColor (&d_8to24table_nobright[i],	src[0], src[1], src[2], 255);
 		}
 	}
