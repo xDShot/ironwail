@@ -32,29 +32,11 @@ ALIAS MODEL DISPLAY LIST GENERATION
 =================================================================
 */
 
-qmodel_t	*aliasmodel;
-aliashdr_t	*paliashdr;
-
-static void GL_MakeAliasModelDisplayLists_VBO (void);
 static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr);
 
 /*
 ================
 GL_MakeAliasModelDisplayLists
-================
-*/
-void GL_MakeAliasModelDisplayLists (qmodel_t *m, aliashdr_t *hdr)
-{
-	aliasmodel = m;
-	paliashdr = hdr;	// (aliashdr_t *)Mod_Extradata (m);
-
-	// ericw
-	GL_MakeAliasModelDisplayLists_VBO ();
-}
-
-/*
-================
-GL_MakeAliasModelDisplayLists_VBO
 
 Saves data needed to build the VBO for this model on the hunk. Afterwards this
 is copied to Mod_Extradata.
@@ -62,7 +44,7 @@ is copied to Mod_Extradata.
 Original code by MH from RMQEngine
 ================
 */
-void GL_MakeAliasModelDisplayLists_VBO (void)
+void GL_MakeAliasModelDisplayLists (qmodel_t *aliasmodel, aliashdr_t *paliashdr)
 {
 	int i, j;
 	int maxverts_vbo;
