@@ -52,9 +52,6 @@ void GL_MakeAliasModelDisplayLists (qmodel_t *m, aliashdr_t *hdr)
 	GL_MakeAliasModelDisplayLists_VBO ();
 }
 
-unsigned int r_meshindexbuffer = 0;
-unsigned int r_meshvertexbuffer = 0;
-
 /*
 ================
 GL_MakeAliasModelDisplayLists_VBO
