@@ -280,7 +280,7 @@ Alias models are position independent, so the cache manager can move them.
 // split out to keep vertex sizes down
 typedef struct aliasmesh_s
 {
-	float st[2];
+	short st[2];
 	unsigned short vertindex;
 } aliasmesh_t;
 
