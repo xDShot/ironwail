@@ -1698,9 +1698,7 @@ qboolean PR_LoadProgs (const char *filename, qboolean fatal)
 		return false;
 	Con_DPrintf ("Programs occupy %iK.\n", com_filesize/1024);
 
-	CRC_Init (&qcvm->crc);
-	for (i = 0; i < com_filesize; i++)
-		CRC_ProcessByte (&qcvm->crc, ((byte *)qcvm->progs)[i]);
+	qcvm->crc = CRC_Block (qcvm->progs, com_filesize);
 
 	// byte swap the header
 	for (i = 0; i < (int) sizeof(*qcvm->progs) / 4; i++)
