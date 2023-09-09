@@ -2111,7 +2111,6 @@ static pack_t *COM_LoadPackFile (const char *packfile)
 	pack_t		*pack;
 	int		packhandle;
 	dpackfile_t	info[MAX_FILES_IN_PACK];
-	unsigned short	crc;
 
 	if (Sys_FileOpenRead (packfile, &packhandle) == -1)
 		return NULL;
@@ -2148,9 +2147,12 @@ static pack_t *COM_LoadPackFile (const char *packfile)
 	Sys_FileRead (packhandle, (void *)info, header.dirlen);
 
 	// crc the directory to check for modifications
-	crc = CRC_Block (info, header.dirlen);
-	if (crc != PAK0_CRC_V106 && crc != PAK0_CRC_V101 && crc != PAK0_CRC_V100)
-		com_modified = true;
+	if (!com_modified)
+	{
+		unsigned short	crc = CRC_Block (info, header.dirlen);
+		if (crc != PAK0_CRC_V106 && crc != PAK0_CRC_V101 && crc != PAK0_CRC_V100)
+			com_modified = true;
+	}
 
 	// parse the directory
 	for (i = 0; i < numpackfiles; i++)
