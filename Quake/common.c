@@ -2781,9 +2781,9 @@ storesetup:
 		quakeflavor_t flavor;
 		if (original[0] && remastered[0])
 		{
-			if (COM_CheckParm ("-prefremaster"))
+			if (COM_CheckParm ("-prefremaster") || COM_CheckParm ("-remaster") || COM_CheckParm ("-remastered"))
 				flavor = QUAKE_FLAVOR_REMASTERED;
-			else if (COM_CheckParm ("-preforiginal"))
+			else if (COM_CheckParm ("-preforiginal") || COM_CheckParm ("-original"))
 				flavor = QUAKE_FLAVOR_ORIGINAL;
 			else
 				flavor = ChooseQuakeFlavor ();
