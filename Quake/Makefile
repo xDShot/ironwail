@@ -10,6 +10,9 @@ DO_USERDIRS=0
 ### Enable/Disable SDL2
 USE_SDL2=1
 
+### Enable/Disable Curl
+USE_CURL=1
+
 ### Enable/Disable codecs for streaming music support
 USE_CODEC_WAVE=1
 USE_CODEC_FLAC=0
@@ -114,8 +117,12 @@ else
 NET_LIBS   :=
 endif
 
+ifeq ($(USE_CURL),1)
 NET_LIBS   += -lcurl
 CFLAGS     += $(shell $(PKG_CONFIG) --cflags libcurl)
+else
+CFLAGS     += -DWITHOUT_CURL
+endif
 
 ifneq ($(VORBISLIB),vorbis)
 ifneq ($(VORBISLIB),tremor)

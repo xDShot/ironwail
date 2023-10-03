@@ -24,8 +24,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.h"
 #include "q_ctype.h"
 #include "json.h"
-
+#include <time.h>
+#ifndef WITHOUT_CURL
 #include <curl/curl.h>
+#endif
 #define MAX_URL	2048
 
 extern cvar_t	pausable;
@@ -569,6 +571,10 @@ typedef struct download_s
 
 static qboolean Download (const char *url, download_t *download)
 {
+#ifdef WITHOUT_CURL
+	download->error = "download support disabled at compile time.";
+	return false;
+#else
 	CURL				*curl;
 	CURLM				*multi_handle;
 	CURLMcode			mc;
@@ -647,6 +653,7 @@ done:
 	curl_multi_cleanup (multi_handle);
 
 	return !download->error && !still_running && download->response == 200;
+#endif
 }
 
 typedef struct
