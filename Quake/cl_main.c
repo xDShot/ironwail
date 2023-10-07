@@ -240,6 +240,7 @@ void CL_SignonReply (void)
 		break;
 
 	case 4:
+		cl.spawntime = cl.mtime[0];
 		SCR_EndLoadingPlaque ();		// allow normal screen updates
 		break;
 	}

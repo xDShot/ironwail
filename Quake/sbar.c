@@ -1009,6 +1009,7 @@ static void Sbar_DrawSigils (void)
 	for (i = 0; i < 4; i++)
 		if (cl.items & (1<<(28+i)))
 			t = q_max (t, cl.item_gettime[28+i]);
+	t = q_max (t, cl.spawntime);
 
 	if (!sb_showscores && (cl.time - t > 3.f || scr_viewsize.value >= 120))
 		return;
@@ -1028,7 +1029,7 @@ static void Sbar_DrawSigils (void)
 	{
 		if (cl.items & (1<<(28+i)))
 		{
-			t = (cl.time - cl.item_gettime[28+i]);
+			t = (cl.time - q_max (cl.item_gettime[28+i], cl.spawntime));
 			t = q_max (t, 0.f);
 			if (t >= 1.f)
 				t = 1.f;
