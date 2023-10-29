@@ -1354,7 +1354,6 @@ void Host_Init (void)
 		BGM_Init();
 		Sbar_Init ();
 		CL_Init ();
-		Modlist_Init (); //johnfitz
 		ExtraMaps_Init (); //johnfitz
 		DemoList_Init (); //ericw
 		SaveList_Init ();

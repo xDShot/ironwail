@@ -2262,7 +2262,7 @@ static void COM_AddEnginePak (void)
 COM_AddGameDirectory -- johnfitz -- modified based on topaz's tutorial
 =================
 */
-static void COM_AddGameDirectory (const char *dir)
+void COM_AddGameDirectory (const char *dir)
 {
 	const char *base;
 	int i, j;
@@ -2882,6 +2882,8 @@ void COM_InitFilesystem (void) //johnfitz -- modified based on topaz's tutorial
 	 * up to here upon a new game command. */
 	com_base_searchpaths = com_searchpaths;
 	COM_ResetGameDirectories("");
+
+	Modlist_Init ();
 
 	// add mission pack requests (only one should be specified)
 	if (COM_CheckParm ("-rogue"))

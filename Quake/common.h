@@ -296,6 +296,9 @@ void COM_Init (void);
 void COM_InitArgv (int argc, char **argv);
 void COM_InitFilesystem (void);
 
+void COM_ResetGameDirectories (char *newgamedirs);
+void COM_AddGameDirectory (const char *dir);
+
 const char *COM_SkipPath (const char *pathname);
 void COM_StripExtension (const char *in, char *out, size_t outsize);
 void COM_FileBase (const char *in, char *out, size_t outsize);

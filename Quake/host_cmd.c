@@ -680,7 +680,11 @@ static SDL_Thread*		extramods_install_thread;
 const char *Modlist_GetFullName (const filelist_item_t *item)
 {
 	const modinfo_t *info = (const modinfo_t *) (item + 1);
-	return info->full_name;
+	const char *full_name = info->full_name;
+	// 2021 rerelease episode names are localized
+	if (full_name && full_name[0] == '$')
+		full_name = LOC_GetRawString (full_name);
+	return full_name;
 }
 
 const char *Modlist_GetDescription (const filelist_item_t *item)
@@ -1083,6 +1087,7 @@ static void Modlist_Add (const char *name)
 	filelist_item_t	*item;
 	modinfo_t		*info;
 	int				i;
+	unsigned int	path_id;
 
 	memset (&info, 0, sizeof (info));
 	item = FileList_AddWithData (name, NULL, sizeof (*info), &modlist);
@@ -1117,6 +1122,50 @@ static void Modlist_Add (const char *name)
 
 			if (info->full_name)
 				break;
+		}
+	}
+
+	// look for mapdb.json file
+	if (!info->full_name)
+	{
+		char *mapdb = (char *) COM_LoadMallocFile ("mapdb.json", &path_id);
+		if (mapdb)
+		{
+			qboolean is_base_mapdb = !com_searchpaths || path_id < com_searchpaths->path_id;
+			json_t *json = JSON_Parse (mapdb);
+			free (mapdb);
+			if (json)
+			{
+				const jsonentry_t *episodes = JSON_Find (json->root, "episodes", JSON_ARRAY);
+				if (episodes)
+				{
+					const jsonentry_t *entry;
+					for (entry = episodes->firstchild; entry; entry = entry->next)
+					{
+						const char *mod_name = JSON_FindString (entry, "name");
+						const char *mod_dir = JSON_FindString (entry, "dir");
+						if (!mod_name || !mod_dir)
+							continue;
+
+						// The 2021 rerelease has a single mapdb.json file in id1 with definitions
+						// for all the included episodes (id1, hipnotic, rogue, dopa & mg1).
+						// If the mapdb file comes from a base dir we only use the episode name
+						// if the local mod dir matches the episode dir.
+						// We also perform a dir check if the name of the episode is "copper"
+						// in order to avoid showing all Copper-based mods as "Underdark Overbright"
+						// if they include Copper's mapdb.json unmodified.
+						// In all other cases we skip the dir check so that players can rename mod dirs
+						// as they please without losing their descriptions in the add-on menu.
+						if (is_base_mapdb || q_strcasecmp (mod_dir, "copper") != 0)
+							if (q_strcasecmp (mod_dir, name) != 0)
+								continue;
+
+						info->full_name = strdup (mod_name);
+						break;
+					}
+				}
+				JSON_Free (json);
+			}
 		}
 	}
 
@@ -1189,7 +1238,11 @@ static void Modlist_FindLocal (void)
 				continue;
 #endif
 			if (Modlist_Check (find->name, com_basedirs[i]))
+			{
+				COM_AddGameDirectory (find->name);
 				Modlist_Add (find->name);
+				COM_ResetGameDirectories ("");
+			}
 		}
 	}
 }
