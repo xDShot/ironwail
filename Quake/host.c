@@ -842,8 +842,9 @@ static void Host_CheckAutosave (void)
 	if (!sv.autosave.prev_health)
 		sv.autosave.prev_health = sv_player->v.health;
 	health_change = sv_player->v.health - sv.autosave.prev_health;
-	if (health_change < 0.f && sv_player->v.health < 100.f) // megahealth decay doesn't count as getting hurt
-		sv.autosave.hurt_time = qcvm->time;
+	if (health_change < 0.f)
+		if (health_change < -3.f || sv_player->v.health < 100.f || sv_player->v.watertype == CONTENTS_SLIME || sv_player->v.watertype == CONTENTS_LAVA)
+			sv.autosave.hurt_time = qcvm->time;
 	sv.autosave.prev_health = sv_player->v.health;
 
 	if (sv_player->v.button0)
