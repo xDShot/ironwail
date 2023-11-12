@@ -865,6 +865,11 @@ static void Host_CheckAutosave (void)
 	if (speed > 100.f)
 		return;
 
+	// Copper's func_void holds the player at the bottom for a bit before inflicting damage,
+	// so we can't assume it's safe to save just because we're no longer falling
+	if ((int)sv_player->v.movetype == MOVETYPE_NONE)
+		return;
+
 	elapsed = qcvm->time - sv.autosave.time - sv.autosave.cheat;
 	if (elapsed < 3.f)
 		return;
