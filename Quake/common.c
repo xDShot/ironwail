@@ -2799,12 +2799,28 @@ static qboolean COM_PatchCmdLine (const char *fullpath)
 		return false;
 	}
 
+	UTF8_ToQuake (printpath, sizeof (printpath), relpath);
+
 	// Apply game dir
-	Q_strncpy (game, relpath, (int)(sep - relpath));
-	COM_AddArg ("-game");
-	COM_AddArg (game);
 	if (*sep)
+	{
+		Q_strncpy (game, relpath, (int)(sep - relpath));
+		COM_AddArg ("-game");
+		COM_AddArg (game);
 		relpath = sep + 1;
+	}
+	else if (type == FS_ENT_DIRECTORY)
+	{
+		COM_AddArg ("-game");
+		COM_AddArg (relpath);
+		return true;
+	}
+	else
+	{
+		Con_SafePrintf ("File \"%s\" not in a mod dir, ignoring.\n", printpath);
+		return false;
+	}
+
 	q_strlcpy (qpath, relpath, sizeof (qpath));
 	COM_NormalizePath (qpath);
 
@@ -2859,8 +2875,7 @@ static qboolean COM_PatchCmdLine (const char *fullpath)
 		break;
 	}
 
-	UTF8_ToQuake (printpath, sizeof (printpath), relpath);
-	Con_SafePrintf ("Unsupported file type \"%s\"\n", printpath);
+	Con_SafePrintf ("Unsupported file type \"%s\", ignoring.\n", printpath);
 
 	return false;
 }
