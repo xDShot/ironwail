@@ -2835,8 +2835,7 @@ static qboolean COM_PatchCmdLine (const char *fullpath)
 	}
 	else
 	{
-		Con_SafePrintf ("File \"%s\" not in a mod dir, ignoring.\n", printpath);
-		return false;
+		game[0] = '\0';
 	}
 
 	q_strlcpy (qpath, relpath, sizeof (qpath));
@@ -2865,8 +2864,16 @@ static qboolean COM_PatchCmdLine (const char *fullpath)
 			// Map file
 			if (q_strcasecmp (ext, "bsp") == 0)
 			{
-				if (q_strncasecmp (qpath, "maps/", 5) != 0)
+				if (!game[0])
+				{
+					Con_SafePrintf ("Map \"%s\" not in a mod dir, ignoring.\n", printpath);
 					return false;
+				}
+				if (q_strncasecmp (qpath, "maps/", 5) != 0)
+				{
+					Con_SafePrintf ("Map \"%s\" not in the \"maps\" dir, ignoring.\n", printpath);
+					return false;
+				}
 				memmove (qpath, qpath + 5, strlen (qpath + 5) + 1);
 				Cbuf_AddText (va ("menu_maps \"%s\"\n", qpath));
 				return true;
@@ -2875,13 +2882,19 @@ static qboolean COM_PatchCmdLine (const char *fullpath)
 			// Save file
 			if (q_strcasecmp (ext, "sav") == 0)
 			{
-				Cbuf_AddText (va ("load \"%s\"\n", qpath));
+				const char *kex = game[0] ? "" : "kex";
+				Cbuf_AddText (va ("load \"%s\" %s\n", qpath, kex));
 				return true;
 			}
 
 			// Demo file
 			if (q_strcasecmp (ext, "dem") == 0)
 			{
+				if (!game[0])
+				{
+					Con_SafePrintf ("Demo \"%s\" not in a mod dir, ignoring.\n", printpath);
+					return false;
+				}
 				Cbuf_AddText (va ("playdemo \"%s\"\n", qpath));
 				return true;
 			}
@@ -2893,7 +2906,10 @@ static qboolean COM_PatchCmdLine (const char *fullpath)
 		break;
 	}
 
-	Con_SafePrintf ("Unsupported file type \"%s\", ignoring.\n", printpath);
+	if (!game[0])
+		Con_SafePrintf ("File \"%s\" not in a mod dir, ignoring.\n", printpath);
+	else
+		Con_SafePrintf ("Unsupported file type \"%s\", ignoring.\n", printpath);
 
 	return false;
 }
