@@ -2375,9 +2375,9 @@ void COM_AddGameDirectory (const char *dir)
 	}
 }
 
-void COM_ResetGameDirectories(char *newgamedirs)
+void COM_ResetGameDirectories(const char *newgamedirs)
 {
-	char *newpath, *path;
+	const char *newpath, *path;
 	searchpath_t *search;
 	//Kill the extra game if it is loaded
 	while (com_searchpaths != com_base_searchpaths)
@@ -2424,11 +2424,73 @@ void COM_ResetGameDirectories(char *newgamedirs)
 //==============================================================================
 //johnfitz -- dynamic gamedir stuff -- modified by QuakeSpasm team.
 //==============================================================================
+
+/*
+=================
+COM_SwitchGame
+=================
+*/
+void COM_SwitchGame (const char *paths)
+{
+	extern cvar_t max_edicts;
+	if (!q_strcasecmp(paths, COM_GetGameNames(true)))
+	{
+		Con_Printf("\"game\" is already \"%s\"\n", COM_GetGameNames(true));
+		return;
+	}
+
+	Host_WaitForSaveThread ();
+
+	com_modified = true;
+
+	//Kill the server
+	CL_Disconnect ();
+	Host_ShutdownServer(true);
+
+	//Write config file
+	Host_WriteConfiguration ();
+
+	// stop parsing map files before changing file system search paths
+	ExtraMaps_Clear ();
+
+	COM_ResetGameDirectories(paths);
+
+	//clear out and reload appropriate data
+	Cache_Flush ();
+	Mod_ResetAll();
+	Sky_ClearAll();
+	if (!isDedicated)
+	{
+		TexMgr_NewGame ();
+		Draw_NewGame ();
+		R_NewGame ();
+	}
+	ExtraMaps_Init ();
+	Host_Resetdemos ();
+	DemoList_Rebuild ();
+	SaveList_Rebuild ();
+	SkyList_Rebuild ();
+	M_CheckMods ();
+	Cvar_SetQuick (&max_edicts, max_edicts.default_string);
+
+	Con_Printf("\n%s\n\"game\" changed to \"%s\"\n", Con_Quakebar (40), COM_GetGameNames(true));
+
+	VID_Lock ();
+	Cbuf_AddText ("unaliasall\n");
+	Cbuf_AddText ("exec quake.rc\n");
+	Cbuf_AddText ("vid_unlock\n");
+}
+
+
+/*
+=================
+COM_Game_f
+=================
+*/
 static void COM_Game_f (void)
 {
 	if (Cmd_Argc() > 1)
 	{
-		extern cvar_t max_edicts;
 		int i, pri;
 		char paths[1024];
 
@@ -2471,52 +2533,8 @@ static void COM_Game_f (void)
 			}
 		}
 
-		if (!q_strcasecmp(paths, COM_GetGameNames(true)))
-		{
-			Con_Printf("\"game\" is already \"%s\"\n", COM_GetGameNames(true));
-			return;
-		}
+		COM_SwitchGame (paths);
 
-		Host_WaitForSaveThread ();
-
-		com_modified = true;
-
-		//Kill the server
-		CL_Disconnect ();
-		Host_ShutdownServer(true);
-
-		//Write config file
-		Host_WriteConfiguration ();
-
-		// stop parsing map files before changing file system search paths
-		ExtraMaps_Clear ();
-
-		COM_ResetGameDirectories(paths);
-
-		//clear out and reload appropriate data
-		Cache_Flush ();
-		Mod_ResetAll();
-		Sky_ClearAll();
-		if (!isDedicated)
-		{
-			TexMgr_NewGame ();
-			Draw_NewGame ();
-			R_NewGame ();
-		}
-		ExtraMaps_Init ();
-		Host_Resetdemos ();
-		DemoList_Rebuild ();
-		SaveList_Rebuild ();
-		SkyList_Rebuild ();
-		M_CheckMods ();
-		Cvar_SetQuick (&max_edicts, max_edicts.default_string);
-
-		Con_Printf("\n%s\n\"game\" changed to \"%s\"\n", Con_Quakebar (40), COM_GetGameNames(true));
-
-		VID_Lock ();
-		Cbuf_AddText ("unaliasall\n");
-		Cbuf_AddText ("exec quake.rc\n");
-		Cbuf_AddText ("vid_unlock\n");
 	}
 	else //Diplay the current gamedir
 		Con_Printf("\"game\" is \"%s\"\n", COM_GetGameNames(true));

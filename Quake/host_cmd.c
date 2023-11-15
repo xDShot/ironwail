@@ -1306,6 +1306,15 @@ void Modlist_ShutDown (void)
 	}
 }
 
+qboolean Modlist_IsInstalled (const char *game)
+{
+	filelist_item_t *item;
+	for (item = modlist; item; item = item->next)
+		if (q_strcasecmp (item->name, game) == 0 && Modlist_GetStatus (item) == MODSTATUS_INSTALLED)
+			return true;
+	return false;
+}
+
 //==============================================================================
 //ericw -- demo list management
 //==============================================================================
@@ -2519,14 +2528,32 @@ static void Host_Loadgame_f (void)
 
 	data = start;
 	data = COM_ParseIntNewline (data, &version);
-	if (version != SAVEGAME_VERSION)
+	if (version == SAVEGAME_VERSION_KEX)
+	{
+		extern char com_gamenames[];
+		const char *game = *com_gamenames ? com_gamenames : GAMENAME;
+		data = COM_ParseStringNewline (data);
+		if (strcmp (game, com_token) != 0)
+		{
+			if (!Modlist_IsInstalled (com_token))
+			{
+				Con_Printf ("ERROR: mod \"%s\" is not installed.\n");
+				return;
+			}
+			COM_SwitchGame (com_token);
+			Cbuf_Execute ();
+			if (key_dest == key_menu)
+				M_ToggleMenu_f ();
+		}
+	}
+	else if (version != SAVEGAME_VERSION)
 	{
 		free (start);
 		start = NULL;
 		if (sv.autoloading)
-			Con_Printf ("ERROR: Savegame is version %i, not %i\n", version, SAVEGAME_VERSION);
+			Con_Printf ("ERROR: Savegame is version %i, not %i or %i\n", version, SAVEGAME_VERSION, SAVEGAME_VERSION_KEX);
 		else
-			Host_Error ("Savegame is version %i, not %i", version, SAVEGAME_VERSION);
+			Host_Error ("Savegame is version %i, not %i or %i", version, SAVEGAME_VERSION, SAVEGAME_VERSION_KEX);
 		Host_InvalidateSave (relname);
 		SCR_EndLoadingPlaque ();
 		return;
