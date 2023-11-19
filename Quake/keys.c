@@ -1141,7 +1141,7 @@ void Key_Event (int key, qboolean down)
 			sprintf (cmd, "-%s %i\n", kb+1, key);
 			Cbuf_AddText (cmd);
 		}
-		if (key_dest == key_console && key == K_MOUSE1 && !down)
+		if (key_dest == key_console && key == K_MOUSE1)
 			Con_Click ();
 		return;
 	}
