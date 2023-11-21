@@ -143,9 +143,9 @@ static void R_FlushSpriteInstances (void)
 	GL_UseProgram (glprogs.sprites[dither]);
 
 	if (showtris)
-		GL_SetState (GLS_BLEND_OPAQUE | GLS_NO_ZWRITE | GLS_CULL_NONE | GLS_ATTRIBS(2));
+		GL_SetState (GLS_BLEND_OPAQUE | GLS_NO_ZWRITE | GLS_CULL_BACK | GLS_ATTRIBS(2));
 	else
-		GL_SetState (GLS_BLEND_OPAQUE | GLS_CULL_NONE | GLS_ATTRIBS(2));
+		GL_SetState (GLS_BLEND_OPAQUE | GLS_CULL_BACK | GLS_ATTRIBS(2));
 
 	GL_Bind (GL_TEXTURE0, showtris ? whitetexture : batchtexture);
 
