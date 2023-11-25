@@ -62,7 +62,8 @@ qboolean Con_Match (const char *str, const char *partial);
 void Con_LogCenterPrint (const char *str);
 
 void Con_Mousemove (int x, int y);
-void Con_Click (void);
+void Con_ForceMouseMove (void);
+qboolean Con_CopySelectionToClipboard (void);
 
 //
 // debuglog

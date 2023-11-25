@@ -4033,6 +4033,31 @@ static const uint32_t qchar_to_unicode[256] =
 
 /*
 ==================
+UTF8_CodePointLength
+
+Returns the number of bytes needed to encode the codepoint
+using UTF-8 (max 4), or 0 for an invalid code point
+==================
+*/
+size_t UTF8_CodePointLength (uint32_t codepoint)
+{
+	if (codepoint < 0x80)
+		return 1;
+
+	if (codepoint < 0x800)
+		return 2;
+
+	if (codepoint < 0x10000)
+		return 3;
+
+	if (codepoint < 0x110000)
+		return 4;
+
+	return 0;
+}
+
+/*
+==================
 UTF8_WriteCodePoint
 
 Writes a single Unicode code point using UTF-8
@@ -4154,14 +4179,30 @@ uint32_t UTF8_ReadCodePoint (const char **src)
 UTF8_FromQuake
 
 Converts a string from Quake encoding to UTF-8
+
+Returns the number of written characters (including the NUL terminator)
+if a valid output buffer is provided (dst is non-NULL, maxbytes > 0),
+or the total amount of space necessary to encode the entire src string
+if dst is NULL and maxbytes is 0.
 ==================
 */
-void UTF8_FromQuake (char *dst, size_t maxbytes, const char *src)
+size_t UTF8_FromQuake (char *dst, size_t maxbytes, const char *src)
 {
 	size_t i, j, written;
 
 	if (!maxbytes)
-		return;
+	{
+		if (dst)
+			return 0; // error
+		for (i = 0, j = 0; src[i]; i++)
+		{
+			uint32_t codepoint = qchar_to_unicode[(unsigned char) src[i]];
+			if (codepoint)
+				j += UTF8_CodePointLength (codepoint);
+		}
+		return j + 1; // include terminator
+	}
+
 	--maxbytes;
 
 	for (i = 0, j = 0; j < maxbytes && src[i]; i++)
@@ -4175,7 +4216,9 @@ void UTF8_FromQuake (char *dst, size_t maxbytes, const char *src)
 		j += written;
 	}
 
-	dst[j] = '\0';
+	dst[j++] = '\0';
+
+	return j;
 }
 
 /*
@@ -4186,11 +4229,16 @@ Transliterates a string from UTF-8 to Quake encoding
 
 Note: only single-character transliterations are used for now,
 mainly to remove diacritics
+
+Returns the number of written characters (including the NUL terminator)
+if a valid output buffer is provided (dst is non-NULL, maxbytes > 0),
+or the total amount of space necessary to encode the entire src string
+if dst is NULL and maxbytes is 0.
 ==================
 */
-void UTF8_ToQuake (char *dst, size_t maxbytes, const char *src)
+size_t UTF8_ToQuake (char *dst, size_t maxbytes, const char *src)
 {
-	size_t i;
+	size_t i, j;
 
 	if (!unicode_translit_init)
 	{
@@ -4214,7 +4262,32 @@ void UTF8_ToQuake (char *dst, size_t maxbytes, const char *src)
 	}
 
 	if (!maxbytes)
-		return;
+	{
+		if (dst)
+			return 0; // error
+
+		// Determine necessary output buffer size
+		for (i = 0, j = 0; *src; i++)
+		{
+			// ASCII fast path
+			while (*src && (byte)*src < 0x80)
+			{
+				src++;
+				j++;
+			}
+
+			if (!*src)
+				break;
+
+			// Every codepoint maps to a single Quake character
+			UTF8_ReadCodePoint (&src);
+
+			j++;
+		}
+
+		return j + 1; // include terminator
+	}
+
 	--maxbytes;
 
 	for (i = 0; i < maxbytes && *src; i++)
@@ -4242,4 +4315,6 @@ void UTF8_ToQuake (char *dst, size_t maxbytes, const char *src)
 	}
 
 	dst[i++] = '\0';
+
+	return i;
 }

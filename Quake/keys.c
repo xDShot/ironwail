@@ -369,6 +369,7 @@ void Key_Console (int key)
 		}
 		else	key_linepos = 1;
 		Con_TabComplete (TABCOMPLETE_AUTOHINT);
+		Con_ForceMouseMove ();
 		return;
 
 	case K_END:
@@ -376,6 +377,7 @@ void Key_Console (int key)
 			con_backscroll = 0;
 		else	key_linepos = strlen(workline);
 		Con_TabComplete (TABCOMPLETE_AUTOHINT);
+		Con_ForceMouseMove ();
 		return;
 
 	case K_PGUP:
@@ -383,6 +385,7 @@ void Key_Console (int key)
 		con_backscroll += keydown[K_CTRL] ? ((con_vislines>>3) - 4) : 2;
 		if (con_backscroll > con_totallines - (vid.height>>3) - 1)
 			con_backscroll = con_totallines - (vid.height>>3) - 1;
+		Con_ForceMouseMove ();
 		return;
 
 	case K_PGDN:
@@ -390,6 +393,7 @@ void Key_Console (int key)
 		con_backscroll -= keydown[K_CTRL] ? ((con_vislines>>3) - 4) : 2;
 		if (con_backscroll < 0)
 			con_backscroll = 0;
+		Con_ForceMouseMove ();
 		return;
 
 	case K_LEFTARROW:
@@ -478,6 +482,11 @@ void Key_Console (int key)
 	case K_INS:
 		if (keydown[K_SHIFT])		/* Shift-Ins paste */
 			PasteToConsole();
+		else if (keydown[K_CTRL])
+		{
+			Con_CopySelectionToClipboard ();
+			return;
+		}
 		else	key_insert ^= 1;
 		Con_TabComplete (TABCOMPLETE_AUTOHINT);
 		return;
@@ -501,6 +510,8 @@ void Key_Console (int key)
 	case 'c':
 	case 'C':
 		if (keydown[K_CTRL]) {		/* Ctrl+C: abort the line -- S.A */
+			if (Con_CopySelectionToClipboard ())
+				return;
 			Con_Printf ("%s\n", workline);
 			workline[0] = ']';
 			workline[1] = 0;
@@ -1141,8 +1152,6 @@ void Key_Event (int key, qboolean down)
 			q_snprintf (cmd, sizeof (cmd), "-%s %i\n", kb+1, key);
 			Cbuf_AddText (cmd);
 		}
-		if (key_dest == key_console && key == K_MOUSE1)
-			Con_Click ();
 		return;
 	}
 

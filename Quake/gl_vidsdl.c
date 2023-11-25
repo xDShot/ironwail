@@ -67,6 +67,7 @@ static SDL_Window	*draw_context;
 static SDL_GLContext	gl_context;
 static SDL_Cursor		*cursor_arrow;
 static SDL_Cursor		*cursor_hand;
+static SDL_Cursor		*cursor_ibeam;
 
 static qboolean	vid_locked = false; //johnfitz
 static qboolean vid_changed = false;
@@ -180,14 +181,17 @@ static void VID_InitMouseCursors (void)
 {
 	cursor_arrow = SDL_CreateSystemCursor (SDL_SYSTEM_CURSOR_ARROW);
 	cursor_hand = SDL_CreateSystemCursor (SDL_SYSTEM_CURSOR_HAND);
+	cursor_ibeam = SDL_CreateSystemCursor (SDL_SYSTEM_CURSOR_IBEAM);
 }
 
 static void VID_FreeMouseCursors (void)
 {
 	SDL_FreeCursor (cursor_arrow);
 	SDL_FreeCursor (cursor_hand);
+	SDL_FreeCursor (cursor_ibeam);
 	cursor_arrow = NULL;
 	cursor_hand = NULL;
+	cursor_ibeam = NULL;
 }
 
 void VID_SetMouseCursor (mousecursor_t cursor)
@@ -200,6 +204,10 @@ void VID_SetMouseCursor (mousecursor_t cursor)
 
 	case MOUSECURSOR_HAND:
 		SDL_SetCursor (cursor_hand);
+		return;
+
+	case MOUSECURSOR_IBEAM:
+		SDL_SetCursor (cursor_ibeam);
 		return;
 
 	default:
