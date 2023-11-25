@@ -55,9 +55,10 @@ static int numgltextures;
 static gltexture_t	*active_gltextures, *free_gltextures;
 gltexture_t		*notexture, *nulltexture, *whitetexture, *greytexture, *blacktexture;
 
+unsigned int d_8to24table_opaque[256];			//standard palette with alpha 255 for all colors
 unsigned int d_8to24table[256];					//standard palette, 255 is transparent
 unsigned int d_8to24table_fbright[256];			//fullbright palette, 0-223 are black (for additive blending)
-unsigned int d_8to24table_alphabright[256];		//palette with lighting mask in alpha channel (0=fullbright, 1=lit)
+unsigned int d_8to24table_alphabright[256];		//palette with lighting mask in alpha channel (0=fullbright, 255=lit)
 unsigned int d_8to24table_fbright_fence[256];	//fullbright palette, for fence textures
 unsigned int d_8to24table_nobright[256];		//nobright palette, 224-255 are black (for additive blending)
 unsigned int d_8to24table_nobright_fence[256];	//nobright palette, for fence textures
@@ -779,7 +780,7 @@ void TexMgr_LoadPalette (void)
 	src = pal;
 	for (i = 0; i < 256; i++, src += 3)
 	{
-		SetColor (&d_8to24table[i], src[0], src[1], src[2], 255);
+		SetColor (&d_8to24table_opaque[i], src[0], src[1], src[2], 255);
 		if (GetBit (is_fullbright, i))
 		{
 			SetColor (&d_8to24table_alphabright[i],	src[0], src[1], src[2], 0);
@@ -793,6 +794,8 @@ void TexMgr_LoadPalette (void)
 			SetColor (&d_8to24table_nobright[i],	src[0], src[1], src[2], 255);
 		}
 	}
+
+	memcpy(d_8to24table, d_8to24table_opaque, 256*4);
 	((byte *) &d_8to24table[255]) [3] = 0; //standard palette, 255 is transparent
 
 	//fullbright palette, for fence textures
@@ -1436,7 +1439,7 @@ static void TexMgr_LoadImage8 (gltexture_t *glt, byte *data)
 	// choose palette and padbyte
 	if (glt->flags & TEXPREF_ALPHABRIGHT)
 	{
-		usepal = gl_fullbrights.value ? d_8to24table_alphabright : d_8to24table;
+		usepal = gl_fullbrights.value ? d_8to24table_alphabright : d_8to24table_opaque;
 		padbyte = 0;
 	}
 	else if (glt->flags & TEXPREF_FULLBRIGHT)
