@@ -405,6 +405,9 @@ copy "$(SolutionDir)..\zlib\$(PlatformShortName)\*.dll" "$(TargetDir)"</Command>
   <ItemGroup>
     <ResourceCompile Include="..\QuakeSpasm.rc" />
   </ItemGroup>
+  <ItemGroup>
+    <Natvis Include="ironwail.natvis" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

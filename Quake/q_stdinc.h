@@ -159,6 +159,10 @@ typedef int	fixed4_t;
 typedef int	fixed8_t;
 typedef int	fixed16_t;
 
+/* natvis helpers */
+typedef struct { float data[2]; } float2_t;
+typedef struct { float data[3]; } float3_t;
+typedef struct { float data[4]; } float4_t;
 
 /*==========================================================================*/
 
