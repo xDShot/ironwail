@@ -120,6 +120,8 @@
 			<Parameter Name="ent" Type="edict_t*"/>
 		</Intrinsic>
 
+		<Intrinsic Name="IsLinked" Expression="area.next != 0"/>
+
 		<Intrinsic Name="HullForSize" Expression="size &lt; 3.0 ? 0 : size &lt;= 32.0 ? 1 : 2" ReturnType="int">
 			<Parameter Name="size" Type="float"/>
 		</Intrinsic>
@@ -159,15 +161,16 @@
 		</Intrinsic>
 
 		<!--Inline view-->
-		<DisplayString Condition="!free">#{EntNum(),4i} {PR_GetString(v.classname),sb} {v.health,g}hp</DisplayString>
-		<DisplayString>#{EntNum(),4i} FREE</DisplayString>
+		<DisplayString Condition="free &amp;&amp; IsLinked()">#{EntNum(),i} FREE LINKED</DisplayString>
+		<DisplayString Condition="free">#{EntNum(),i} FREE LINKED</DisplayString>
+		<DisplayString>#{EntNum(),i} {PR_GetString(v.classname),sb} {v.health,g}hp</DisplayString>
 
 		<!--Expanded view-->
 		<Expand>
 			<Item Name="index">EntNum()</Item>
 			<Item Name="classname">PR_GetString(v.classname),s</Item>
 			<Item Name="free">free,en</Item>
-			<Item Name="linked">area.next != 0,b</Item>
+			<Item Name="linked">IsLinked(),b</Item>
 
 			<!--Spatial properties-->
 			<Synthetic Name="[position]">
