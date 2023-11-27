@@ -363,7 +363,8 @@ extern cvar_t scr_fov;
 
 void IN_MouseMotion(int dx, int dy)
 {
-	if (cls.state != ca_connected || cls.signon != SIGNONS || key_dest != key_game || cl.fixangle)
+	qboolean cutscene = cl.fixangle && !cl.viewent.model;
+	if (cls.state != ca_connected || cls.signon != SIGNONS || key_dest != key_game || cutscene)
 	{
 		total_dx = 0;
 		total_dy = 0;
