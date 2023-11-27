@@ -1957,11 +1957,17 @@ int			m_skill_cursor;
 qboolean	m_skill_usegfx;
 qboolean	m_skill_usecustomtitle;
 char		m_skill_mapname[MAX_QPATH];
+char		m_skill_maptitle[1024];
+double		m_skill_scroll_time;
+double		m_skill_scroll_wait_time;
+
 enum m_state_e m_skill_prevmenu;
 
 void M_SetSkillMenuMap (const char *name)
 {
 	q_strlcpy (m_skill_mapname, name, sizeof (m_skill_mapname));
+	if (!Mod_LoadMapDescription (m_skill_maptitle, sizeof (m_skill_maptitle), name) || !m_skill_maptitle[0])
+		q_strlcpy (m_skill_maptitle, name, sizeof (m_skill_maptitle));
 }
 
 void M_Menu_Skill_f (void)
@@ -1973,6 +1979,8 @@ void M_Menu_Skill_f (void)
 	m_entersound = true;
 	m_skill_cursor = (int)skill.value;
 	m_skill_cursor = CLAMP (0, m_skill_cursor, 3);
+	m_skill_scroll_time = 0.0;
+	m_skill_scroll_wait_time = 1.0;
 }
 
 void M_Skill_Draw (void)
@@ -1984,10 +1992,16 @@ void M_Skill_Draw (void)
 	p = Draw_CachePic (m_skill_usecustomtitle ? "gfx/p_skill.lmp" : "gfx/ttl_sgl.lmp");
 	M_DrawPic ( (320-p->width)/2, 4, p);
 
+	if (m_skill_scroll_wait_time <= 0.0)
+		m_skill_scroll_time += host_rawframetime;
+	else
+		m_skill_scroll_wait_time = q_max (0.0, m_skill_scroll_wait_time - host_rawframetime);
+	M_PrintScroll (72, 32, 30*8, m_skill_maptitle, m_skill_scroll_time, false);
+
 	if (m_skill_usegfx)
 	{
-		M_DrawTransPic (72, 32, Draw_CachePic ("gfx/skillmenu.lmp") );
-		M_DrawQuakeCursor (54, 32 + m_skill_cursor * 20);
+		M_DrawTransPic (72, 48, Draw_CachePic ("gfx/skillmenu.lmp") );
+		M_DrawQuakeCursor (54, 48 + m_skill_cursor * 20);
 	}
 	else
 	{
@@ -2000,8 +2014,8 @@ void M_Skill_Draw (void)
 		};
 
 		for (f = 0; f < 4; f++)
-			M_Print (88, 44+4 + f*16, skills[f]);
-		M_DrawArrowCursor (72, 44+4 + m_skill_cursor*16);
+			M_Print (88, 48+4 + f*16, skills[f]);
+		M_DrawArrowCursor (72, 48+4 + m_skill_cursor*16);
 	}
 }
 
@@ -2029,6 +2043,18 @@ void M_Skill_Key (int key)
 			m_skill_cursor = 3;
 		break;
 
+	case K_RIGHTARROW:
+		m_skill_scroll_time += 0.25;
+		m_skill_scroll_wait_time = 1.5;
+		M_ThrottledSound ("misc/menu3.wav");
+		break;
+
+	case K_LEFTARROW:
+		m_skill_scroll_time -= 0.25;
+		m_skill_scroll_wait_time = 1.5;
+		M_ThrottledSound ("misc/menu3.wav");
+		break;
+
 	case K_ENTER:
 	case K_KP_ENTER:
 	case K_ABUTTON:
@@ -2050,9 +2076,9 @@ void M_Skill_Mousemove (int cx, int cy)
 {
 	int prev = m_skill_cursor;
 	if (m_skill_usegfx)
-		M_UpdateCursor (cy, 32, 20, 4, &m_skill_cursor);
+		M_UpdateCursor (cy, 48, 20, 4, &m_skill_cursor);
 	else
-		M_UpdateCursor (cy, 44, 16, 4, &m_skill_cursor);
+		M_UpdateCursor (cy, 48, 16, 4, &m_skill_cursor);
 	if (m_skill_cursor != prev)
 		M_MouseSound ("misc/menu1.wav");
 }
