@@ -363,8 +363,7 @@ extern cvar_t scr_fov;
 
 void IN_MouseMotion(int dx, int dy)
 {
-	qboolean cutscene = cl.fixangle && !cl.viewent.model;
-	if (cls.state != ca_connected || cls.signon != SIGNONS || key_dest != key_game || cutscene)
+	if (cls.state != ca_connected || cls.signon != SIGNONS || key_dest != key_game || CL_InCutscene ())
 	{
 		total_dx = 0;
 		total_dy = 0;
@@ -642,7 +641,7 @@ void IN_JoyMove (usercmd_t *cmd)
 	cmd->sidemove += speed * moveEased.x;
 	cmd->forwardmove -= speed * moveEased.y;
 
-	if (cl.fixangle)
+	if (CL_InCutscene ())
 		return;
 
 	cl.viewangles[YAW] -= lookEased.x * joy_sensitivity_yaw.value * host_frametime;

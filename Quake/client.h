@@ -342,6 +342,7 @@ void CL_SendMove (const usercmd_t *cmd);
 int  CL_ReadFromServer (void);
 void CL_AdjustAngles (void);
 void CL_BaseMove (usercmd_t *cmd);
+qboolean CL_InCutscene (void);
 
 void CL_ParseTEnt (void);
 void CL_UpdateTEnts (void);
