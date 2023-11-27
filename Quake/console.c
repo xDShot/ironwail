@@ -426,22 +426,6 @@ static qboolean Con_GetNormalizedSelection (conofs_t *begin, conofs_t *end)
 
 /*
 ================
-Con_IsOfsSelected
-================
-*/
-static qboolean Con_IsOfsSelected (const conofs_t *ofs)
-{
-	int range = Con_OfsCompare (&con_selection.begin, &con_selection.end);
-	if (!range)
-		return 0;
-	if (range < 0)
-		return Con_OfsInRange (ofs, &con_selection.begin, &con_selection.end);	// forward selection
-	else
-		return Con_OfsInRange (ofs, &con_selection.end, &con_selection.begin);	// backward selection
-}
-
-/*
-================
 Con_SetMouseState
 ================
 */
