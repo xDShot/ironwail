@@ -854,22 +854,22 @@ void CL_Viewpos_f (void)
 	//camera position
 	q_snprintf (buf, sizeof (buf),
 		"(%i %i %i) %i %i %i",
-		(int)r_refdef.vieworg[0],
-		(int)r_refdef.vieworg[1],
-		(int)r_refdef.vieworg[2],
-		(int)r_refdef.viewangles[PITCH],
-		(int)r_refdef.viewangles[YAW],
-		(int)r_refdef.viewangles[ROLL]);
+		Q_rint (r_refdef.vieworg[0]),
+		Q_rint (r_refdef.vieworg[1]),
+		Q_rint (r_refdef.vieworg[2]),
+		Q_rint (r_refdef.viewangles[PITCH]),
+		Q_rint (r_refdef.viewangles[YAW]),
+		Q_rint (r_refdef.viewangles[ROLL]));
 #else
 	//player position
 	q_snprintf (buf, sizeof (buf),
 		"(%i %i %i) %i %i %i",
-		(int)cl_entities[cl.viewentity].origin[0],
-		(int)cl_entities[cl.viewentity].origin[1],
-		(int)cl_entities[cl.viewentity].origin[2],
-		(int)cl.viewangles[PITCH],
-		(int)cl.viewangles[YAW],
-		(int)cl.viewangles[ROLL]
+		Q_rint (cl_entities[cl.viewentity].origin[0]),
+		Q_rint (cl_entities[cl.viewentity].origin[1]),
+		Q_rint (cl_entities[cl.viewentity].origin[2]),
+		Q_rint (cl.viewangles[PITCH]),
+		Q_rint (cl.viewangles[YAW]),
+		Q_rint (cl.viewangles[ROLL])
 	);
 #endif
 	Con_Printf ("Viewpos: %s\n", buf);

@@ -1789,12 +1789,12 @@ static void Host_SetPos_f(void)
 		SV_ClientPrintf("   setpos <x> <y> <z> <pitch> <yaw> <roll>\n");
 		SV_ClientPrintf("current values:\n");
 		SV_ClientPrintf("   %i %i %i %i %i %i\n",
-			(int)sv_player->v.origin[0],
-			(int)sv_player->v.origin[1],
-			(int)sv_player->v.origin[2],
-			(int)sv_player->v.v_angle[0],
-			(int)sv_player->v.v_angle[1],
-			(int)sv_player->v.v_angle[2]);
+			Q_rint (sv_player->v.origin[0]),
+			Q_rint (sv_player->v.origin[1]),
+			Q_rint (sv_player->v.origin[2]),
+			Q_rint (sv_player->v.v_angle[0]),
+			Q_rint (sv_player->v.v_angle[1]),
+			Q_rint (sv_player->v.v_angle[2]));
 		return;
 	}
 
