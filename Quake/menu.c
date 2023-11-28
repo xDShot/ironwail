@@ -172,8 +172,6 @@ void M_SetSkillMenuMap (const char *name);
 void M_Options_SelectMods (void);
 void M_Options_Init (enum m_state_e state);
 
-#define DESCRIPTION_SCROLL_WAIT_TIME	1.0
-
 #define SEARCH_FADE_TIMEOUT				0.5
 #define SEARCH_TYPE_TIMEOUT				1.5
 #define SEARCH_ERASE_TIMEOUT			1.5
@@ -1044,6 +1042,50 @@ void M_List_Mousemove (menulist_t *list, int yrel)
 
 
 //=============================================================================
+/* Scrolling ticker */
+
+typedef struct
+{
+	double			scroll_time;
+	double			scroll_wait_time;
+} menuticker_t;
+
+static void M_Ticker_Init (menuticker_t *ticker)
+{
+	ticker->scroll_time = 0.0;
+	ticker->scroll_wait_time = 1.0;
+}
+
+static void M_Ticker_Update (menuticker_t *ticker)
+{
+	if (ticker->scroll_wait_time <= 0.0)
+		ticker->scroll_time += host_rawframetime;
+	else
+		ticker->scroll_wait_time = q_max (0.0, ticker->scroll_wait_time - host_rawframetime);
+}
+
+static qboolean M_Ticker_Key (menuticker_t *ticker, int key)
+{
+	switch (key)
+	{
+	case K_RIGHTARROW:
+		ticker->scroll_time += 0.25;
+		ticker->scroll_wait_time = 1.5;
+		M_ThrottledSound ("misc/menu3.wav");
+		return true;
+
+	case K_LEFTARROW:
+		ticker->scroll_time -= 0.25;
+		ticker->scroll_wait_time = 1.5;
+		M_ThrottledSound ("misc/menu3.wav");
+		return true;
+
+	default:
+		return false;
+	}
+}
+
+//=============================================================================
 
 int m_save_demonum;
 
@@ -1556,12 +1598,11 @@ typedef struct
 static struct
 {
 	menulist_t		list;
+	menuticker_t	ticker;
 	int				x, y, cols;
 	int				mapcount;			// not all items represent actual maps!
 	qboolean		scrollbar_grab;
 	int				prev_cursor;
-	double			scroll_time;
-	double			scroll_wait_time;
 	mapitem_t		*items;
 } mapsmenu;
 
@@ -1662,10 +1703,10 @@ static void M_Maps_Init (void)
 	mapsmenu.list.cursor = -1;
 	mapsmenu.list.scroll = 0;
 	mapsmenu.list.numitems = 0;
-	mapsmenu.scroll_time = 0;
-	mapsmenu.scroll_wait_time = DESCRIPTION_SCROLL_WAIT_TIME;
 	mapsmenu.mapcount = 0;
 	VEC_CLEAR (mapsmenu.items);
+
+	M_Ticker_Init (&mapsmenu.ticker);
 
 	for (i = 0, active = -1, prev_type = -1; extralevels_sorted[i]; i++)
 	{
@@ -1752,16 +1793,10 @@ void M_Maps_Draw (void)
 	if (mapsmenu.prev_cursor != mapsmenu.list.cursor)
 	{
 		mapsmenu.prev_cursor = mapsmenu.list.cursor;
-		mapsmenu.scroll_time = 0.0;
-		mapsmenu.scroll_wait_time = DESCRIPTION_SCROLL_WAIT_TIME;
+		M_Ticker_Init (&mapsmenu.ticker);
 	}
 	else
-	{
-		if (mapsmenu.scroll_wait_time <= 0.0)
-			mapsmenu.scroll_time += host_rawframetime;
-		else
-			mapsmenu.scroll_wait_time = q_max (0.0, mapsmenu.scroll_wait_time - host_rawframetime);
-	}
+		M_Ticker_Update (&mapsmenu.ticker);
 
 	x = mapsmenu.x;
 	y = mapsmenu.y;
@@ -1822,7 +1857,7 @@ void M_Maps_Draw (void)
 					GL_SetCanvasColor (1, 1, 1, 1);
 
 				M_PrintScroll (x + namecols*8, y + i*8, desccols*8, buf,
-					selected ? mapsmenu.scroll_time : 0.0, true);
+					selected ? mapsmenu.ticker.scroll_time : 0.0, true);
 				
 				if (!message)
 					GL_SetCanvasColor (1, 1, 1, 1);
@@ -1880,6 +1915,12 @@ void M_Maps_Key (int key)
 	if (M_List_Key (&mapsmenu.list, key))
 		return;
 
+	if (M_Ticker_Key (&mapsmenu.ticker, key))
+	{
+		M_List_KeepSearchVisible (&mapsmenu.list, 1.0);
+		return;
+	}
+
 	switch (key)
 	{
 	case K_ESCAPE:
@@ -1888,19 +1929,6 @@ void M_Maps_Key (int key)
 	case K_MOUSE2:
 		M_List_ClearSearch (&mapsmenu.list);
 		M_Menu_SinglePlayer_f ();
-		break;
-
-	case K_RIGHTARROW:
-		mapsmenu.scroll_time += 0.25;
-		mapsmenu.scroll_wait_time = 1.5;
-		M_List_KeepSearchVisible (&mapsmenu.list, 1.0);
-		M_ThrottledSound ("misc/menu3.wav");
-		break;
-	case K_LEFTARROW:
-		mapsmenu.scroll_time -= 0.25;
-		mapsmenu.scroll_wait_time = 1.5;
-		M_List_KeepSearchVisible (&mapsmenu.list, 1.0);
-		M_ThrottledSound ("misc/menu3.wav");
 		break;
 
 	case K_ENTER:
@@ -1953,13 +1981,12 @@ void M_Maps_Mousemove (int cx, int cy)
 //=============================================================================
 /* SKILL MENU */
 
-int			m_skill_cursor;
-qboolean	m_skill_usegfx;
-qboolean	m_skill_usecustomtitle;
-char		m_skill_mapname[MAX_QPATH];
-char		m_skill_maptitle[1024];
-double		m_skill_scroll_time;
-double		m_skill_scroll_wait_time;
+int				m_skill_cursor;
+qboolean		m_skill_usegfx;
+qboolean		m_skill_usecustomtitle;
+char			m_skill_mapname[MAX_QPATH];
+char			m_skill_maptitle[1024];
+menuticker_t	m_skill_ticker;
 
 enum m_state_e m_skill_prevmenu;
 
@@ -1979,8 +2006,7 @@ void M_Menu_Skill_f (void)
 	m_entersound = true;
 	m_skill_cursor = (int)skill.value;
 	m_skill_cursor = CLAMP (0, m_skill_cursor, 3);
-	m_skill_scroll_time = 0.0;
-	m_skill_scroll_wait_time = 1.0;
+	M_Ticker_Init (&m_skill_ticker);
 }
 
 void M_Skill_Draw (void)
@@ -1992,11 +2018,8 @@ void M_Skill_Draw (void)
 	p = Draw_CachePic (m_skill_usecustomtitle ? "gfx/p_skill.lmp" : "gfx/ttl_sgl.lmp");
 	M_DrawPic ( (320-p->width)/2, 4, p);
 
-	if (m_skill_scroll_wait_time <= 0.0)
-		m_skill_scroll_time += host_rawframetime;
-	else
-		m_skill_scroll_wait_time = q_max (0.0, m_skill_scroll_wait_time - host_rawframetime);
-	M_PrintScroll (72, 32, 30*8, m_skill_maptitle, m_skill_scroll_time, false);
+	M_Ticker_Update (&m_skill_ticker);
+	M_PrintScroll (72, 32, 30*8, m_skill_maptitle, m_skill_ticker.scroll_time, false);
 
 	if (m_skill_usegfx)
 	{
@@ -2021,6 +2044,9 @@ void M_Skill_Draw (void)
 
 void M_Skill_Key (int key)
 {
+	if (M_Ticker_Key (&m_skill_ticker, key))
+		return;
+
 	switch (key)
 	{
 	case K_ESCAPE:
@@ -2041,18 +2067,6 @@ void M_Skill_Key (int key)
 		M_ThrottledSound ("misc/menu1.wav");
 		if (--m_skill_cursor < 0)
 			m_skill_cursor = 3;
-		break;
-
-	case K_RIGHTARROW:
-		m_skill_scroll_time += 0.25;
-		m_skill_scroll_wait_time = 1.5;
-		M_ThrottledSound ("misc/menu3.wav");
-		break;
-
-	case K_LEFTARROW:
-		m_skill_scroll_time -= 0.25;
-		m_skill_scroll_wait_time = 1.5;
-		M_ThrottledSound ("misc/menu3.wav");
 		break;
 
 	case K_ENTER:
@@ -5328,11 +5342,10 @@ typedef struct
 static struct
 {
 	menulist_t			list;
+	menuticker_t		ticker;
 	int					x, y, cols;
 	int					modcount;
 	int					prev_cursor;
-	double				scroll_time;
-	double				scroll_wait_time;
 	double				download_flash_time;
 	enum m_state_e		prev;
 	qboolean			scrollbar_grab;
@@ -5464,6 +5477,8 @@ static void M_Mods_Init (void)
 	modsmenu.modcount = 0;
 	VEC_CLEAR (modsmenu.items);
 
+	M_Ticker_Init (&modsmenu.ticker);
+
 	for (pass = 0; pass < 2; pass++)
 	{
 		count = 0;
@@ -5523,16 +5538,10 @@ void M_Mods_Draw (void)
 	if (modsmenu.prev_cursor != modsmenu.list.cursor)
 	{
 		modsmenu.prev_cursor = modsmenu.list.cursor;
-		modsmenu.scroll_time = 0.0;
-		modsmenu.scroll_wait_time = 1.0;
+		M_Ticker_Init (&modsmenu.ticker);
 	}
 	else
-	{
-		if (modsmenu.scroll_wait_time <= 0.0)
-			modsmenu.scroll_time += host_rawframetime;
-		else
-			modsmenu.scroll_wait_time = q_max (0.0, modsmenu.scroll_wait_time - host_rawframetime);
-	}
+		M_Ticker_Update (&modsmenu.ticker);
 
 	modsmenu.download_flash_time = q_max (0.0, modsmenu.download_flash_time - host_rawframetime);
 	flash = (int)(modsmenu.download_flash_time * 8.0) & 1;
@@ -5600,7 +5609,7 @@ void M_Mods_Draw (void)
 					GL_SetCanvasColor (1, 1, 1, 1);
 
 				M_PrintScroll (x + namecols*8, y + i*8, desccols*8, buf,
-					selected ? modsmenu.scroll_time : 0.0, true);
+					selected ? modsmenu.ticker.scroll_time : 0.0, true);
 
 				if (!message)
 					GL_SetCanvasColor (1, 1, 1, 1);
@@ -5660,6 +5669,12 @@ void M_Mods_Key (int key)
 	if (M_List_Key (&modsmenu.list, key))
 		return;
 
+	if (M_Ticker_Key (&modsmenu.ticker, key))
+	{
+		M_List_KeepSearchVisible (&modsmenu.list, 1.0);
+		return;
+	}
+
 	switch (key)
 	{
 	case K_ESCAPE:
@@ -5695,19 +5710,6 @@ void M_Mods_Key (int key)
 			goto enter;
 		modsmenu.scrollbar_grab = true;
 		M_Mods_Mousemove (m_mousex, m_mousey);
-		break;
-
-	case K_RIGHTARROW:
-		modsmenu.scroll_time += 0.25;
-		modsmenu.scroll_wait_time = 1.5;
-		M_List_KeepSearchVisible (&modsmenu.list, 1.0);
-		M_ThrottledSound ("misc/menu3.wav");
-		break;
-	case K_LEFTARROW:
-		modsmenu.scroll_time -= 0.25;
-		modsmenu.scroll_wait_time = 1.5;
-		M_List_KeepSearchVisible (&modsmenu.list, 1.0);
-		M_ThrottledSound ("misc/menu3.wav");
 		break;
 
 	default:
