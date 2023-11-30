@@ -157,8 +157,6 @@ static void Con_ScreenToCanvas (int x, int y, int *outx, int *outy)
 	x = (int) (px + 0.5f);
 	y = (int) (py + 0.5f);
 
-	y = vid.conheight - y;
-
 	*outx = x;
 	*outy = y;
 }
@@ -177,6 +175,9 @@ static qboolean Con_ScreenToOffset (int x, int y, conofs_t *ofs, contest_t testm
 	qboolean ret = true;
 
 	Con_ScreenToCanvas (x, y, &x, &y);
+
+// Start from the bottom of the console
+	y = vid.conheight - y;
 
 // Apply rounding
 	if (testmode == CT_NEAREST)
