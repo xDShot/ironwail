@@ -4375,10 +4375,12 @@ void M_Menu_Quit_f (void)
 
 void M_Quit_Key (int key)
 {
-	if (key == K_ESCAPE ||
-		key == K_MOUSE2 ||
-		key == K_MOUSE4)
+	switch (key)
 	{
+	case K_ESCAPE:
+	case K_BBUTTON:
+	case K_MOUSE4:
+	case K_MOUSE2:
 		if (wasInMenus)
 		{
 			m_state = m_quit_prevstate;
@@ -4390,6 +4392,15 @@ void M_Quit_Key (int key)
 			key_dest = key_game;
 			m_state = m_none;
 		}
+
+	case K_ABUTTON:
+		IN_DeactivateForConsole();
+		key_dest = key_console;
+		Host_Quit_f ();
+		break;
+
+	default:
+		break;
 	}
 }
 
