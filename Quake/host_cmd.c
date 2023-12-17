@@ -2557,7 +2557,7 @@ static void Host_Loadgame_f (void)
 		{
 			if (!Modlist_IsInstalled (com_token))
 			{
-				Con_Printf ("ERROR: mod \"%s\" is not installed.\n");
+				Con_Printf ("ERROR: mod \"%s\" is not installed.\n", com_token);
 				return;
 			}
 			COM_SwitchGame (com_token);
