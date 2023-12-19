@@ -1016,6 +1016,25 @@ void Con_DebugLog(const char *msg)
 
 /*
 ================
+Con_StripControlPrefixes
+================
+*/
+static const char *Con_StripControlPrefixes (const char *txt)
+{
+	// colored text
+	if (txt[0] == 1 || txt[0] == 2)
+		txt++;
+
+	// [skipnotify]
+	if (!Q_strncmp (txt, "[skipnotify]", 12))
+		txt += 12;
+
+	return txt;
+}
+
+
+/*
+================
 Con_Printf
 
 Handles cursor positioning, line wrapping, etc
@@ -1033,7 +1052,7 @@ void Con_Printf (const char *fmt, ...)
 	va_end (argptr);
 
 // also echo to debugging console
-	Sys_Printf ("%s", msg);
+	Sys_Printf ("%s", Con_StripControlPrefixes (msg));
 
 	if (!con_initialized)
 		return;
