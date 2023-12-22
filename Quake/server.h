@@ -20,8 +20,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
-#ifndef _QUAKE_SERVER_H
-#define _QUAKE_SERVER_H
+#ifndef QUAKE_SERVER_H
+#define QUAKE_SERVER_H
 
 // server.h
 
@@ -103,18 +103,20 @@ typedef struct
 
 #define	NUM_PING_TIMES		16
 
+enum sendsignon_e
+{
+	PRESPAWN_DONE,
+	PRESPAWN_FLUSH=1,
+	PRESPAWN_SIGNONBUFS,
+	PRESPAWN_SIGNONMSG,
+};
+
 typedef struct client_s
 {
 	qboolean		active;				// false = client is free
 	qboolean		spawned;			// false = don't send datagrams
 	qboolean		dropasap;			// has been told to go to another level
-	enum
-	{
-		PRESPAWN_DONE,
-		PRESPAWN_FLUSH=1,
-		PRESPAWN_SIGNONBUFS,
-		PRESPAWN_SIGNONMSG,
-	}				sendsignon;			// only valid before spawned
+	enum sendsignon_e	sendsignon;			// only valid before spawned
 	int				signonidx;
 
 	double			last_message;		// reliable messages must be sent
@@ -283,8 +285,7 @@ void SV_MoveToGoal (void);
 
 void SV_CheckForNewClients (void);
 void SV_RunClients (void);
-void SV_SaveSpawnparms ();
+void SV_SaveSpawnparms (void);
 void SV_SpawnServer (const char *server);
 
-#endif	/* _QUAKE_SERVER_H */
-
+#endif	/* QUAKE_SERVER_H */

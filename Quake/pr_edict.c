@@ -34,6 +34,8 @@ int		type_size[8] = {
 	1	// sizeof(void *) / 4		// ev_pointer
 };
 
+#define NUM_TYPE_SIZES (int)Q_COUNTOF(type_size)
+
 static ddef_t	*ED_FieldAtOfs (int ofs);
 static qboolean	ED_ParseEpair (void *base, ddef_t *key, const char *s, qboolean zoned);
 
@@ -680,6 +682,9 @@ void ED_Print (edict_t *ed)
 	// if the value is still all 0, skip the field
 		type = d->type & ~DEF_SAVEGLOBAL;
 
+		if (type >= NUM_TYPE_SIZES)
+			continue;
+
 		for (j = 0; j < type_size[type]; j++)
 		{
 			if (v[j])
@@ -734,6 +739,10 @@ void ED_Write (savedata_t *save, edict_t *ed)
 
 	// if the value is still all 0, skip the field
 		type = d->type & ~DEF_SAVEGLOBAL;
+
+		if (type >= NUM_TYPE_SIZES)
+			continue;
+
 		for (j = 0; j < type_size[type]; j++)
 		{
 			if (v[j])

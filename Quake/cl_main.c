@@ -160,7 +160,6 @@ void CL_Disconnect (void)
 	cls.demoplayback = cls.timedemo = false;
 	cls.demopaused = false;
 	cl.intermission = 0;
-	cl.sendprespawn = false;
 	CL_ClearSignons ();
 
 	V_ResetEffects ();

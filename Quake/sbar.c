@@ -23,48 +23,48 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 
-int		sb_updates;		// if >= vid.numpages, no update needed
+static int		sb_updates;		// if >= vid.numpages, no update needed
 
 #define STAT_MINUS		10	// num frame for '-' stats digit
 
 #define SBAR2_MARGIN_X	16
 #define SBAR2_MARGIN_Y	10
 
-qpic_t		*sb_nums[2][11];
-qpic_t		*sb_colon, *sb_slash;
-qpic_t		*sb_ibar;
-qpic_t		*sb_sbar;
-qpic_t		*sb_scorebar;
+static qpic_t		*sb_nums[2][11];
+static qpic_t		*sb_colon, *sb_slash;
+static qpic_t		*sb_ibar;
+static qpic_t		*sb_sbar;
+static qpic_t		*sb_scorebar;
 
-qpic_t		*sb_weapons[7][8];   // 0 is active, 1 is owned, 2-5 are flashes
-qpic_t		*sb_ammo[4];
-qpic_t		*sb_sigil[4];
-qpic_t		*sb_armor[3];
-qpic_t		*sb_items[32];
+static qpic_t		*sb_weapons[7][8];   // 0 is active, 1 is owned, 2-5 are flashes
+static qpic_t		*sb_ammo[4];
+static qpic_t		*sb_sigil[4];
+static qpic_t		*sb_armor[3];
+static qpic_t		*sb_items[32];
 
-qpic_t		*sb_faces[7][2];		// 0 is gibbed, 1 is dead, 2-6 are alive
+static qpic_t		*sb_faces[7][2];	// 0 is gibbed, 1 is dead, 2-6 are alive
 							// 0 is static, 1 is temporary animation
-qpic_t		*sb_face_invis;
-qpic_t		*sb_face_quad;
-qpic_t		*sb_face_invuln;
-qpic_t		*sb_face_invis_invuln;
+static qpic_t		*sb_face_invis;
+static qpic_t		*sb_face_quad;
+static qpic_t		*sb_face_invuln;
+static qpic_t		*sb_face_invis_invuln;
 
-qboolean	sb_showscores;
+static qboolean	sb_showscores;
 
 int		sb_lines;			// scan lines to draw
 
-qpic_t		*rsb_invbar[2];
-qpic_t		*rsb_weapons[5];
-qpic_t		*rsb_items[2];
-qpic_t		*rsb_ammo[3];
-qpic_t		*rsb_teambord;		// PGM 01/19/97 - team color border
+static qpic_t		*rsb_invbar[2];
+static qpic_t		*rsb_weapons[5];
+static qpic_t		*rsb_items[2];
+static qpic_t		*rsb_ammo[3];
+static qpic_t		*rsb_teambord;		// PGM 01/19/97 - team color border
 
 //MED 01/04/97 added two more weapons + 3 alternates for grenade launcher
-qpic_t		*hsb_weapons[7][5];   // 0 is active, 1 is owned, 2-5 are flashes
+static qpic_t		*hsb_weapons[7][5];   // 0 is active, 1 is owned, 2-5 are flashes
 //MED 01/04/97 added array to simplify weapon parsing
-int		hipweapons[4] = {HIT_LASER_CANNON_BIT,HIT_MJOLNIR_BIT,4,HIT_PROXIMITY_GUN_BIT};
+static int		hipweapons[4] = {HIT_LASER_CANNON_BIT,HIT_MJOLNIR_BIT,4,HIT_PROXIMITY_GUN_BIT};
 //MED 01/04/97 added hipnotic items array
-qpic_t		*hsb_items[2];
+static qpic_t		*hsb_items[2];
 
 void Sbar_MiniDeathmatchOverlay (void);
 void Sbar_DeathmatchOverlay (void);
@@ -421,11 +421,6 @@ void Sbar_DrawSmallNum (int x, int y, int num)
 //=============================================================================
 
 int		fragsort[MAX_SCOREBOARD];
-
-char		scoreboardtext[MAX_SCOREBOARD][20];
-int		scoreboardtop[MAX_SCOREBOARD];
-int		scoreboardbottom[MAX_SCOREBOARD];
-int		scoreboardcount[MAX_SCOREBOARD];
 int		scoreboardlines;
 
 /*
@@ -469,35 +464,6 @@ int	Sbar_ColorForMap (int m)
 
 /*
 ===============
-Sbar_UpdateScoreboard
-===============
-*/
-void Sbar_UpdateScoreboard (void)
-{
-	int		i, k;
-	int		top, bottom;
-	scoreboard_t	*s;
-
-	Sbar_SortFrags ();
-
-// draw the text
-	memset (scoreboardtext, 0, sizeof(scoreboardtext));
-
-	for (i = 0; i < scoreboardlines; i++)
-	{
-		k = fragsort[i];
-		s = &cl.scores[k];
-		sprintf (&scoreboardtext[i][1], "%3i %s", s->frags, s->name);
-
-		top = s->colors & 0xf0;
-		bottom = (s->colors & 15) <<4;
-		scoreboardtop[i] = Sbar_ColorForMap (top);
-		scoreboardbottom[i] = Sbar_ColorForMap (bottom);
-	}
-}
-
-/*
-===============
 Sbar_SoloScoreboard -- johnfitz -- new layout
 ===============
 */
@@ -508,17 +474,17 @@ void Sbar_SoloScoreboard (void)
 	int	left, right, len;
 
 	sprintf (str,"Kills: %i/%i", cl.stats[STAT_MONSTERS], cl.stats[STAT_TOTALMONSTERS]);
-	left = 8 + strlen (str)*8;
+	left = 8 + strlen (str) * 8;
 	Sbar_DrawString (8, 12, str);
 
 	sprintf (str,"Secrets: %i/%i", cl.stats[STAT_SECRETS], cl.stats[STAT_TOTALSECRETS]);
-	right = 312 - strlen (str)*8;
+	right = 312 - strlen (str) * 8;
 	Sbar_DrawString (right, 12, str);
 
 	if (!fitzmode)
 	{ /* QuakeSpasm customization: */
 		q_snprintf (str, sizeof(str), "skill %i", (int)(skill.value + 0.5));
-		Sbar_DrawString ((left + right)/2 - strlen(str)*4, 12, str);
+		Sbar_DrawString ((left + right) / 2 - strlen (str) * 4, 12, str);
 
 		if (cl.levelname[0])
 			q_snprintf (str, sizeof(str), "%s (%s)", cl.levelname, cl.mapname);
@@ -1582,6 +1548,8 @@ void Sbar_IntermissionText (int x, int y, const char *str, int color)
 	while (*str)
 	{
 		qpic_t *pic = Sbar_IntermissionPicForChar (*str++, color);
+		if (!pic)
+			continue;
 		Draw_Pic (x, y, pic);
 		x += pic ? pic->width : 24;
 	}
@@ -1791,12 +1759,12 @@ void Sbar_IntermissionOverlay (void)
 
 	GL_SetCanvas (CANVAS_MENU); //johnfitz
 
-	q_snprintf (time,     sizeof (time),     "%d:%02d", cl.completed_time/60,    cl.completed_time%60);
-	q_snprintf (secrets,  sizeof (secrets),  "%d/%2d",  cl.stats[STAT_SECRETS],  cl.stats[STAT_TOTALSECRETS]);
-	q_snprintf (monsters, sizeof (monsters), "%d/%2d",  cl.stats[STAT_MONSTERS], cl.stats[STAT_TOTALMONSTERS]);
+	q_snprintf (time, sizeof (time), "%d:%02d", cl.completed_time / 60, cl.completed_time % 60);
+	q_snprintf (secrets, sizeof (secrets), "%d/%2d", cl.stats[STAT_SECRETS], cl.stats[STAT_TOTALSECRETS]);
+	q_snprintf (monsters, sizeof (monsters), "%d/%2d", cl.stats[STAT_MONSTERS], cl.stats[STAT_TOTALMONSTERS]);
 
-	ltime     = Sbar_IntermissionTextWidth (time,     0);
-	lsecrets  = Sbar_IntermissionTextWidth (secrets,  0);
+	ltime = Sbar_IntermissionTextWidth (time, 0);
+	lsecrets = Sbar_IntermissionTextWidth (secrets, 0);
 	lmonsters = Sbar_IntermissionTextWidth (monsters, 0);
 
 	total = q_max (ltime, lsecrets);
@@ -1805,14 +1773,14 @@ void Sbar_IntermissionOverlay (void)
 	pic = Draw_CachePic ("gfx/inter.lmp");
 	total += pic->width + 24;
 	total = q_min (320, total);
-	Draw_Pic (160 - total/2, 56, pic);
+	Draw_Pic (160 - total / 2, 56, pic);
 
 	pic = Draw_CachePic ("gfx/complete.lmp");
-	Draw_Pic (160 - pic->width/2, 24, pic);
+	Draw_Pic (160 - pic->width / 2, 24, pic);
 
-	Sbar_IntermissionText (160 + total/2 - ltime,      64, time,     0);
-	Sbar_IntermissionText (160 + total/2 - lsecrets,  104, secrets,  0);
-	Sbar_IntermissionText (160 + total/2 - lmonsters, 144, monsters, 0);
+	Sbar_IntermissionText (160 + total / 2 - ltime, 64, time, 0);
+	Sbar_IntermissionText (160 + total / 2 - lsecrets, 104, secrets, 0);
+	Sbar_IntermissionText (160 + total / 2 - lmonsters, 144, monsters, 0);
 }
 
 

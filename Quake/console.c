@@ -1010,7 +1010,12 @@ void Con_DebugLog(const char *msg)
 	if (log_fd == -1)
 		return;
 
-	write(log_fd, msg, strlen(msg));
+	if (write(log_fd, msg, strlen(msg)) < 0)
+	{
+		close (log_fd);
+		log_fd = -1;
+		fprintf (stderr, "Error writing to log file\n");
+	}
 }
 
 
@@ -1594,8 +1599,7 @@ static const arg_completion_type_t arg_completion_types[] =
 	{ "unbind",					CompleteUnbindKeys,		NULL },
 };
 
-static const int num_arg_completion_types =
-	sizeof(arg_completion_types)/sizeof(arg_completion_types[0]);
+static const int num_arg_completion_types = Q_COUNTOF(arg_completion_types);
 
 /*
 ============

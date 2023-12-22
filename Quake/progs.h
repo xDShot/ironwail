@@ -330,7 +330,7 @@ int SAVE_NUM_FOR_EDICT (savedata_t *save, edict_t *e);
 
 #define	NEXT_EDICT(e)		((edict_t *)( (byte *)e + qcvm->edict_size))
 
-#define	EDICT_TO_PROG(e)	((byte *)e - (byte *)qcvm->edicts)
+#define	EDICT_TO_PROG(e)	(int)((byte *)e - (byte *)qcvm->edicts)
 #define PROG_TO_EDICT(e)	((edict_t *)((byte *)qcvm->edicts + e))
 #define SAVE_PROG_TO_EDICT(s, e)	((edict_t *)((byte *)s->edicts + e))
 

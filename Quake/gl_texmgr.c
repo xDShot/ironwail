@@ -90,7 +90,7 @@ static const glmode_t glmodes[] = {
 	{GL_LINEAR,  GL_LINEAR_MIPMAP_NEAREST,	"GL_LINEAR_MIPMAP_NEAREST"},
 	{GL_LINEAR,  GL_LINEAR_MIPMAP_LINEAR,	"GL_LINEAR_MIPMAP_LINEAR"},
 };
-#define NUM_GLMODES (int)(sizeof(glmodes)/sizeof(glmodes[0]))
+#define NUM_GLMODES (int)Q_COUNTOF(glmodes)
 static int glmode_idx = 2; /* nearest with linear mips */
 
 static GLuint gl_samplers[NUM_GLMODES * 2]; // x2: nomip + mip
@@ -149,10 +149,8 @@ TexMgr_DescribeTextureModes_f -- report available texturemodes
 static void TexMgr_DescribeTextureModes_f (void)
 {
 	int i;
-
 	for (i = 0; i < NUM_GLMODES; i++)
 		Con_SafePrintf ("   %2i: %s\n", i + 1, glmodes[i].name);
-
 	Con_Printf ("%i modes\n", i);
 }
 
@@ -743,7 +741,7 @@ void TexMgr_LoadPalette (void)
 	mark = Hunk_LowMark ();
 	pal = (byte *) Hunk_Alloc (768);
 	if (fread (pal, 768, 1, f) != 1)
-		Sys_Error ("TexMgr_LoadPalette: read error");
+		Sys_Error ("Failed reading gfx/palette.lmp");
 	fclose(f);
 
 	COM_FOpenFile ("gfx/colormap.lmp", &f, NULL);
@@ -936,8 +934,7 @@ int TexMgr_PadConditional (int s)
 {
 	if (s < TexMgr_SafeTextureSize(s))
 		return TexMgr_Pad(s);
-	else
-		return s;
+	return s;
 }
 
 /*
@@ -1646,6 +1643,7 @@ void TexMgr_ReloadImage (gltexture_t *glt, int shirt, int pants)
 	byte	translation[256];
 	byte	*src, *dst, *data = NULL, *translated;
 	int	mark, size, i;
+
 //
 // get source data
 //
@@ -1654,6 +1652,7 @@ void TexMgr_ReloadImage (gltexture_t *glt, int shirt, int pants)
 	if (glt->source_file[0] && glt->source_offset) {
 		//lump inside file
 		FILE *f;
+		int sz;
 		COM_FOpenFile(glt->source_file, &f, NULL);
 		if (!f) goto invalid;
 		fseek (f, glt->source_offset, SEEK_CUR);
@@ -1666,12 +1665,12 @@ void TexMgr_ReloadImage (gltexture_t *glt, int shirt, int pants)
 			size *= lightmap_bytes;
 		}
 		data = (byte *) Hunk_Alloc (size);
-		if (fread (data, size, 1, f) != 1)
-		{
-			fclose (f);
-			goto invalid;
-		}
+		sz = (int) fread (data, 1, size, f);
 		fclose (f);
+		if (sz != size) {
+			Hunk_FreeToLowMark(mark);
+			Host_Error("Read error for %s", glt->name);
+		}
 	}
 	else if (glt->source_file[0] && !glt->source_offset) {
 		data = Image_LoadImage (glt->source_file, (int *)&glt->source_width, (int *)&glt->source_height); //simple file

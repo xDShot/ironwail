@@ -36,7 +36,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define	X11_VERSION		1.10
 
 #define	FITZQUAKE_VERSION	0.85	//johnfitz
-#define	QUAKESPASM_VERSION	0.95
+#define	QUAKESPASM_VERSION	0.96
 #define	QUAKESPASM_VER_PATCH	1	// helper to print a string like 0.94.7
 #ifndef	QUAKESPASM_VER_SUFFIX
 #define	QUAKESPASM_VER_SUFFIX		// optional version suffix string literal like "-beta1"
@@ -401,7 +401,7 @@ void Host_ShutdownServer (qboolean crash);
 void Host_WriteConfiguration (void);
 void Host_Resetdemos (void);
 
-void Host_SavegameComment (char *text);
+void Host_SavegameComment (char text[SAVEGAME_COMMENT_LENGTH + 1]);
 void Host_WaitForSaveThread (void);
 void Host_ShutdownSave (void);
 qboolean Host_IsSaving (void);

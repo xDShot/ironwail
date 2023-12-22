@@ -31,6 +31,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 extern cvar_t ui_mouse;
 extern cvar_t language;
 
+static qboolean windowhasfocus = true;	//just in case sdl fails to tell us...
 static qboolean	textmode;
 
 static cvar_t in_debugkeys = {"in_debugkeys", "0", CVAR_NONE};
@@ -363,6 +364,8 @@ extern cvar_t scr_fov;
 
 void IN_MouseMotion(int dx, int dy)
 {
+	if (!windowhasfocus)
+		dx = dy = 0;	//don't change view angles etc while unfocused.
 	if (cls.state != ca_connected || cls.signon != SIGNONS || key_dest != key_game || CL_InCutscene ())
 	{
 		total_dx = 0;
@@ -887,10 +890,12 @@ void IN_SendKeyEvents (void)
 			if (event.window.event == SDL_WINDOWEVENT_FOCUS_GAINED)
 			{
 				Sys_ActivateKeyFilter(true);
+				windowhasfocus = true;
 				S_UnblockSound();
 			}
 			else if (event.window.event == SDL_WINDOWEVENT_FOCUS_LOST)
 			{
+				windowhasfocus = false;
 				S_BlockSound();
 				Sys_ActivateKeyFilter(false);
 			}
@@ -931,7 +936,7 @@ void IN_SendKeyEvents (void)
 		case SDL_MOUSEBUTTONDOWN:
 		case SDL_MOUSEBUTTONUP:
 			if (event.button.button < 1 ||
-			    event.button.button > sizeof(buttonremap) / sizeof(buttonremap[0]))
+			    event.button.button > Q_COUNTOF(buttonremap))
 			{
 				Con_Printf ("Ignored event for mouse button %d\n",
 							event.button.button);

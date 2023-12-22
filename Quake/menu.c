@@ -1340,7 +1340,7 @@ void M_SinglePlayer_Key (int key)
 		{
 		case 0:
 			if (sv.active)
-				if (!SCR_ModalMessage("Are you sure you want to\nstart a new game?\n", 0.0f))
+				if (!SCR_ModalMessage("Are you sure you want to\nstart a new game? (y/n)\n", 0.0f))
 					break;
 			if (quake64)
 			{
@@ -1404,10 +1404,14 @@ void M_ScanSaves (void)
 		loadable[i] = false;
 		q_snprintf (name, sizeof(name), "%s/s%i.sav", com_gamedir, i);
 		f = Sys_fopen (name, "r");
-		if (!f)
+		if (!f) {
 			continue;
-		fscanf (f, "%i\n", &version);
-		fscanf (f, "%79s\n", name);
+		}
+		if (fscanf(f, "%i\n", &version) != 1 ||
+		    fscanf(f, "%79s\n", name)   != 1) {
+			fclose(f);
+			continue;
+		}
 		q_strlcpy (m_filenames[i], name, SAVEGAME_COMMENT_LENGTH+1);
 
 	// change _ back to space
@@ -1500,7 +1504,6 @@ void M_Load_Key (int k)
 		if (!loadable[load_cursor])
 			return;
 		m_state = m_none;
-		IN_Activate();
 		key_dest = key_game;
 
 	// issue the load command
@@ -4004,7 +4007,7 @@ static const char* const bindnames[][2] =
 	{"impulse 226",		"Mjolnir"},
 };
 
-#define	NUMCOMMANDS		(sizeof(bindnames)/sizeof(bindnames[0]))
+#define	NUMCOMMANDS		Q_COUNTOF(bindnames)
 #define KEYLIST_OFS		48
 
 static struct

@@ -1373,6 +1373,10 @@ void	VID_Shutdown (void)
 	if (vid_initialized)
 	{
 		VID_FreeMouseCursors();
+		SDL_GL_DeleteContext(gl_context);
+		gl_context = NULL;
+		SDL_DestroyWindow(draw_context);
+		draw_context = NULL;
 		SDL_QuitSubSystem(SDL_INIT_VIDEO);
 		draw_context = NULL;
 		gl_context = NULL;
@@ -1564,7 +1568,7 @@ void	VID_Init (void)
 		"r_softemu_metric",
 		"scr_pixelaspect",
 	};
-#define num_readvars	( sizeof(read_vars)/sizeof(read_vars[0]) )
+#define num_readvars	Q_COUNTOF(read_vars)
 
 	Con_SafePrintf ("\nVideo initialization\n");
 
