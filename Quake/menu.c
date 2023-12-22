@@ -330,7 +330,7 @@ static int M_WordLength (const char *text)
 static int M_LineWrap (const char **text, int maxchars)
 {
 	const char *str = *text;
-	int i, lastspace = 0;
+	int i;
 
 	for (i = 0; i < maxchars && str[i]; /**/)
 	{
