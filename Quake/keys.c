@@ -52,7 +52,7 @@ typedef struct
 	int		keynum;
 } keyname_t;
 
-keyname_t keynames[] =
+static const keyname_t keynames[] =
 {
 	{"TAB", K_TAB},
 	{"ENTER", K_ENTER},
@@ -630,7 +630,7 @@ the K_* names are matched up.
 */
 int Key_StringToKeynum (const char *str)
 {
-	keyname_t	*kn;
+	const keyname_t *kn;
 
 	if (!str || !str[0])
 		return -1;
@@ -657,7 +657,7 @@ FIXME: handle quote special (general escape sequence?)
 const char *Key_KeynumToString (int keynum)
 {
 	static	char	tinystr[128][2];
-	keyname_t	*kn;
+	const keyname_t	*kn;
 
 	if (keynum == -1)
 		return "<KEY NOT FOUND>";
