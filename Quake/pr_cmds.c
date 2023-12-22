@@ -1637,7 +1637,7 @@ static void PF_makestatic (void)
 		}
 	}
 
-	SV_ReserveSignonSpace (33);
+	SV_ReserveSignonSpace (34);
 
 	if (bits)
 	{
