@@ -4395,6 +4395,7 @@ void M_Quit_Key (int key)
 			key_dest = key_game;
 			m_state = m_none;
 		}
+		break;
 
 	case K_ABUTTON:
 		IN_DeactivateForConsole();
