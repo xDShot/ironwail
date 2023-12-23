@@ -295,6 +295,7 @@ void Key_Console (int key)
 	{
 	case K_ENTER:
 	case K_KP_ENTER:
+	case K_ABUTTON:
 		key_tabpartial[0] = 0;
 		Cbuf_AddText (workline + 1);	// skip the prompt
 		Cbuf_AddText ("\n");
@@ -979,6 +980,7 @@ void Key_Init (void)
 #endif
 	consolekeys[K_MWHEELUP] = true;
 	consolekeys[K_MWHEELDOWN] = true;
+	consolekeys[K_ABUTTON] = true;
 
 //
 // initialize menubound[]
