@@ -1359,15 +1359,15 @@ void M_SinglePlayer_Key (int key)
 			break;
 
 		case 1:
-			M_Menu_Load_f ();
+			Cbuf_AddText ("menu_load\n");
 			break;
 
 		case 2:
-			M_Menu_Save_f ();
+			Cbuf_AddText ("menu_save\n");
 			break;
 
 		case 3:
-			M_Menu_Maps_f ();
+			Cbuf_AddText ("menu_maps\n");
 			break;
 		}
 	}
