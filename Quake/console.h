@@ -35,6 +35,7 @@ extern byte *con_chars;
 extern char con_lastcenterstring[]; //johnfitz
 
 void Con_CheckResize (void);
+void Con_Scroll (int lines);
 void Con_Init (void);
 void Con_DrawConsole (int lines, qboolean drawinput);
 void Con_Printf (const char *fmt, ...) FUNC_PRINTF(1,2);

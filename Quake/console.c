@@ -826,6 +826,33 @@ void Con_CheckResize (void)
 
 /*
 ================
+Con_Scroll
+================
+*/
+void Con_Scroll (int lines)
+{
+	if (!lines)
+		return;
+
+	con_backscroll += lines;
+
+	if (lines > 0)
+	{
+		if (con_backscroll > con_totallines - (vid.height>>3) - 1)
+			con_backscroll = con_totallines - (vid.height>>3) - 1;
+	}
+	else
+	{
+		if (con_backscroll < 0)
+			con_backscroll = 0;
+	}
+
+	Con_ForceMouseMove ();
+}
+
+
+/*
+================
 Con_Init
 ================
 */

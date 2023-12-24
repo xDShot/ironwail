@@ -584,7 +584,41 @@ void IN_Commands (void)
 		IN_JoyKeyEvent(joy_axisstate.axisvalue[SDL_CONTROLLER_AXIS_LEFTY] < -stickthreshold, newaxisstate.axisvalue[SDL_CONTROLLER_AXIS_LEFTY] < -stickthreshold, K_UPARROW, &joy_emulatedkeytimer[2]);
 		IN_JoyKeyEvent(joy_axisstate.axisvalue[SDL_CONTROLLER_AXIS_LEFTY] > stickthreshold,  newaxisstate.axisvalue[SDL_CONTROLLER_AXIS_LEFTY] > stickthreshold, K_DOWNARROW, &joy_emulatedkeytimer[3]);
 	}
-	
+
+	// scroll console with look stick
+	if (key_dest == key_console)
+	{
+		const float scrollthreshold = 0.1f;
+		const float maxscrollspeed = 72.f; // lines per second
+		const float scrollinterval = 1.f / maxscrollspeed; 
+		static double timer = 0.0;
+		joyaxis_t raw, deadzone, eased;
+		float scale;
+
+		raw.x = newaxisstate.axisvalue[joy_swapmovelook.value ? SDL_CONTROLLER_AXIS_LEFTX : SDL_CONTROLLER_AXIS_RIGHTX];
+		raw.y = newaxisstate.axisvalue[joy_swapmovelook.value ? SDL_CONTROLLER_AXIS_LEFTY : SDL_CONTROLLER_AXIS_RIGHTY];
+		deadzone = IN_ApplyDeadzone (raw, joy_deadzone_look.value, joy_outer_threshold_look.value);
+		eased = IN_ApplyEasing (deadzone, joy_exponent.value);
+		if (joy_invert.value)
+			eased.y = -eased.y;
+
+		scale = fabs (eased.y);
+		if (scale > scrollthreshold)
+		{
+			timer -= scale * host_rawframetime;
+			if (timer < 0.0)
+			{
+				int ticks = (int) ceil (-timer / scrollinterval);
+				timer += ticks * scrollinterval;
+				Con_Scroll (eased.y < 0.0f ? ticks : -ticks);
+			}
+		}
+		else
+		{
+			timer = 0.0;
+		}
+	}
+
 	// emit emulated keys for the analog triggers
 	IN_JoyKeyEvent(joy_axisstate.axisvalue[SDL_CONTROLLER_AXIS_TRIGGERLEFT] > triggerthreshold,  newaxisstate.axisvalue[SDL_CONTROLLER_AXIS_TRIGGERLEFT] > triggerthreshold, K_LTRIGGER, &joy_emulatedkeytimer[4]);
 	IN_JoyKeyEvent(joy_axisstate.axisvalue[SDL_CONTROLLER_AXIS_TRIGGERRIGHT] > triggerthreshold, newaxisstate.axisvalue[SDL_CONTROLLER_AXIS_TRIGGERRIGHT] > triggerthreshold, K_RTRIGGER, &joy_emulatedkeytimer[5]);
