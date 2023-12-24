@@ -605,6 +605,7 @@ void IN_Commands (void)
 		scale = fabs (eased.y);
 		if (scale > scrollthreshold)
 		{
+			scale = (scale - scrollthreshold) / (1.f - scrollthreshold);
 			timer -= scale * host_rawframetime;
 			if (timer < 0.0)
 			{
