@@ -263,7 +263,7 @@ extern char *q_strupr (char *str);
 extern int q_snprintf (char *str, size_t size, const char *format, ...) FUNC_PRINTF(3,4);
 extern int q_vsnprintf(char *str, size_t size, const char *format, va_list args) FUNC_PRINTF(3,0);
 
-#define PLURAL(count)	(&"s"[(count)==1])
+#define PLURAL(count)	((int)(count)), (&"s"[((int)(count))==1])
 
 //============================================================================
 
@@ -311,6 +311,9 @@ const char *COM_FileGetExtension (const char *in); /* doesn't return NULL */
 void COM_ExtractExtension (const char *in, char *out, size_t outsize);
 char *COM_TempSuffix (unsigned seq);
 void COM_CreatePath (char *path);
+
+// Describes the given duration, e.g. "3 minutes"
+void COM_DescribeDuration (char *out, size_t outsize, double seconds);
 
 char *va (const char *format, ...) FUNC_PRINTF(1,2);
 // does a varargs printf into a temp buffer

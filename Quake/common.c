@@ -1722,6 +1722,43 @@ char *COM_TempSuffix (unsigned seq)
 
 /*
 ============
+COM_DescribeDuration
+
+Describes the given duration, e.g. "3 minutes"
+============
+*/
+void COM_DescribeDuration (char *out, size_t outsize, double seconds)
+{
+	const double SECOND = 1;
+	const double MINUTE = 60 * SECOND;
+	const double HOUR = 60 * MINUTE;
+	const double DAY = 24 * HOUR;
+	const double WEEK = 7 * DAY;
+	const double MONTH = 30.436875 * DAY;
+	const double YEAR = 365.2425 * DAY;
+
+	seconds = fabs (seconds);
+
+	if (seconds < 1)
+		q_strlcpy (out, "moments", outsize);
+	else if (seconds < 60 * SECOND)
+		q_snprintf (out, outsize, "%i second%s", PLURAL (seconds));
+	else if (seconds < 90 * MINUTE)
+		q_snprintf (out, outsize, "%i minute%s", PLURAL (seconds / MINUTE));
+	else if (seconds < DAY)
+		q_snprintf (out, outsize, "%i hour%s", PLURAL (seconds / HOUR));
+	else if (seconds < WEEK)
+		q_snprintf (out, outsize, "%i day%s", PLURAL (seconds / DAY));
+	else if (seconds < MONTH)
+		q_snprintf (out, outsize, "%i week%s", PLURAL (seconds / WEEK));
+	else if (seconds < YEAR)
+		q_snprintf (out, outsize, "%i month%s", PLURAL (seconds / MONTH));
+	else
+		q_snprintf (out, outsize, "%i year%s", PLURAL (seconds / YEAR));
+}
+
+/*
+============
 COM_CreatePath
 ============
 */

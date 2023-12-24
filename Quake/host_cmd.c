@@ -797,8 +797,8 @@ static void Modlist_RegisterAddons (void *param)
 		"Add-on server status:\n"
 		"%3d add-on%s available for download\n"
 		"%3d add-on%s already installed\n\n",
-		total - installed, PLURAL (total - installed),
-		installed, PLURAL (installed)
+		PLURAL (total - installed),
+		PLURAL (installed)
 	);
 
 	extramods_json = json;

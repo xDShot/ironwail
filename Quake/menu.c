@@ -24,6 +24,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "bgmusic.h"
 #include "q_ctype.h"
 
+#include <time.h>
+
 cvar_t ui_mouse	= {"ui_mouse", "1", CVAR_ARCHIVE};
 cvar_t ui_mouse_sound = {"ui_mouse_sound", "0", CVAR_ARCHIVE};
 cvar_t ui_sound_throttle = {"ui_sound_throttle", "0.1", CVAR_ARCHIVE};
@@ -2002,6 +2004,43 @@ void M_SetSkillMenuMap (const char *name)
 
 void M_Menu_Skill_f (void)
 {
+	char autosave[MAX_OSPATH];
+
+	// If there's an autosave, offer to resume it instead of starting over
+	q_snprintf (autosave, sizeof (autosave), "%s/autosave/%s.sav", com_gamedir, m_skill_mapname);
+	if (Sys_FileExists (autosave))
+	{
+		char	message[256];
+		time_t	now, lastplayed;
+
+		time (&now);
+		if (Sys_GetFileTime (autosave, &lastplayed) && lastplayed <= now)
+		{
+			char duration[32];
+			COM_DescribeDuration (duration, sizeof (duration), difftime (lastplayed, now));
+			q_snprintf (message, sizeof (message),
+				"Load last autosave\n"
+				"from %s ago?\n"
+				"\n"
+				"(y/n)\n",
+				duration
+			);
+		}
+		else
+		{
+			q_snprintf (message, sizeof (message), "Load last autosave? (y/n)\n");
+		}
+
+		if (SCR_ModalMessage (message, 0.0f))
+		{
+			m_state = m_none;
+			key_dest = key_game;
+			Cbuf_AddText (va ("load \"autosave/%s\"\n", m_skill_mapname));
+			return;
+		}
+	}
+
+	// Show skill selection menu
 	IN_DeactivateForMenu();
 	key_dest = key_menu;
 	m_skill_prevmenu = m_state;
