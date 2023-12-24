@@ -965,7 +965,9 @@ void IN_SendKeyEvents (void)
 		// SDL2: we interpret the keyboard as the US layout, so keybindings
 		// are based on key position, not the label on the key cap.
 			key = IN_SDL2_ScancodeToQuakeKey(event.key.keysym.scancode);
-			Key_Event (key, down);
+
+		// also pass along the underlying keycode using the proper current layout for Y/N prompts.
+			Key_EventWithKeycode (key, down, event.key.keysym.sym);
 			break;
 
 		case SDL_MOUSEBUTTONDOWN:
