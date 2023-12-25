@@ -743,7 +743,7 @@ VID_Test -- johnfitz -- like vid_restart, but asks for confirmation after switch
 */
 static void VID_Test (void)
 {
-	int old_width, old_height, old_refreshrate, old_bpp, old_fullscreen;
+	int old_width, old_height, old_refreshrate, old_fullscreen;
 
 	if (vid_locked || !vid_changed)
 		return;
@@ -753,7 +753,6 @@ static void VID_Test (void)
 	old_width = VID_GetCurrentWidth();
 	old_height = VID_GetCurrentHeight();
 	old_refreshrate = VID_GetCurrentRefreshRate();
-	old_bpp = VID_GetCurrentBPP();
 	old_fullscreen = VID_GetFullscreen() ? true : false;
 
 	VID_Restart ();
@@ -1550,7 +1549,7 @@ void	VID_Init (void)
 {
 	static char vid_center[] = "SDL_VIDEO_CENTERED=center";
 	int		p, width, height, refreshrate;
-	int		display_width, display_height, display_refreshrate, display_bpp;
+	int		display_width, display_height, display_refreshrate;
 	qboolean	fullscreen;
 	cmd_function_t	*cmd;
 	const char	*read_vars[] =
@@ -1626,7 +1625,6 @@ void	VID_Init (void)
 		display_width = mode.w;
 		display_height = mode.h;
 		display_refreshrate = mode.refresh_rate;
-		display_bpp = SDL_BITSPERPIXEL(mode.format);
 	}
 
 	Cvar_SetValueQuick (&vid_width, (float)display_width);
