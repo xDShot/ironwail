@@ -510,6 +510,9 @@ Adapted from DarkPlaces by lordhavoc
 */
 static void IN_JoyKeyEvent(qboolean wasdown, qboolean isdown, int key, double *timer)
 {
+	static const double repeatdelay = 0.5; // time (in seconds) between initial press and first repetition
+	static const double repeatrate = 32.0; // ticks per second
+
 	// we can't use `realtime` for key repeats because it is not monotomic
 	const double currenttime = Sys_DoubleTime();
 	
@@ -519,7 +522,7 @@ static void IN_JoyKeyEvent(qboolean wasdown, qboolean isdown, int key, double *t
 		{
 			if (currenttime >= *timer)
 			{
-				*timer = currenttime + 0.1;
+				*timer = currenttime + 1.0 / repeatrate;
 				Key_Event(key, true);
 			}
 		}
@@ -533,7 +536,7 @@ static void IN_JoyKeyEvent(qboolean wasdown, qboolean isdown, int key, double *t
 	{
 		if (isdown)
 		{
-			*timer = currenttime + 0.5;
+			*timer = currenttime + repeatdelay;
 			Key_Event(key, true);
 		}
 	}
