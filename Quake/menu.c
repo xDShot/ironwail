@@ -1989,6 +1989,9 @@ void M_Maps_Mousemove (int cx, int cy)
 int				m_skill_cursor;
 qboolean		m_skill_usegfx;
 qboolean		m_skill_usecustomtitle;
+qboolean		m_skill_canresume;
+time_t			m_skill_lastplayed;
+int				m_skill_numoptions;
 char			m_skill_mapname[MAX_QPATH];
 char			m_skill_maptitle[1024];
 menuticker_t	m_skill_ticker;
@@ -2006,67 +2009,62 @@ void M_Menu_Skill_f (void)
 {
 	char autosave[MAX_OSPATH];
 
-	// If there's an autosave, offer to resume it instead of starting over
+	m_skill_canresume = false;
+	m_skill_lastplayed = 0;
 	q_snprintf (autosave, sizeof (autosave), "%s/autosave/%s.sav", com_gamedir, m_skill_mapname);
 	if (Sys_FileExists (autosave))
 	{
-		char	message[256];
-		time_t	now, lastplayed;
-
+		time_t now, lastplayed;
+		m_skill_canresume = true;
 		time (&now);
 		if (Sys_GetFileTime (autosave, &lastplayed) && lastplayed <= now)
-		{
-			char duration[32];
-			COM_DescribeDuration (duration, sizeof (duration), difftime (lastplayed, now));
-			q_snprintf (message, sizeof (message),
-				"Load last autosave\n"
-				"from %s ago?\n"
-				"\n"
-				"(y/n)\n",
-				duration
-			);
-		}
-		else
-		{
-			q_snprintf (message, sizeof (message), "Load last autosave? (y/n)\n");
-		}
-
-		if (SCR_ModalMessage (message, 0.0f))
-		{
-			m_state = m_none;
-			key_dest = key_game;
-			Cbuf_AddText (va ("load \"autosave/%s\"\n", m_skill_mapname));
-			return;
-		}
+			m_skill_lastplayed = lastplayed;
 	}
 
-	// Show skill selection menu
 	IN_DeactivateForMenu();
 	key_dest = key_menu;
 	m_skill_prevmenu = m_state;
 	m_state = m_skill;
 	m_entersound = true;
-	m_skill_cursor = (int)skill.value;
-	m_skill_cursor = CLAMP (0, m_skill_cursor, 3);
 	M_Ticker_Init (&m_skill_ticker);
+
+	if (m_skill_canresume)
+	{
+		// Select "Resume" option initially if available
+		m_skill_cursor = 4;
+	}
+	else
+	{
+		// Select current skill level initially if there's no autosave
+		m_skill_cursor = (int)skill.value;
+		m_skill_cursor = CLAMP (0, m_skill_cursor, 3);
+	}
+	m_skill_numoptions = 4 + m_skill_canresume;
 }
 
 void M_Skill_Draw (void)
 {
-	int		f;
+	int		x, y, f;
 	qpic_t	*p;
 
 	M_DrawTransPic (16, 4, Draw_CachePic ("gfx/qplaque.lmp") );
-	p = Draw_CachePic (m_skill_usecustomtitle ? "gfx/p_skill.lmp" : "gfx/ttl_sgl.lmp");
+	p = Draw_CachePic (m_skill_usecustomtitle && !m_skill_canresume ? "gfx/p_skill.lmp" : "gfx/ttl_sgl.lmp");
 	M_DrawPic ( (320-p->width)/2, 4, p);
 
+	x = 72;
+	y = 32;
+
 	M_Ticker_Update (&m_skill_ticker);
-	M_PrintScroll (72, 32, 30*8, m_skill_maptitle, m_skill_ticker.scroll_time, false);
+	M_PrintScroll (x, 32, 30*8, m_skill_maptitle, m_skill_ticker.scroll_time, false);
+
+	y += 16;
 
 	if (m_skill_usegfx)
 	{
-		M_DrawTransPic (72, 48, Draw_CachePic ("gfx/skillmenu.lmp") );
-		M_DrawQuakeCursor (54, 48 + m_skill_cursor * 20);
+		M_DrawTransPic (x, y, Draw_CachePic ("gfx/skillmenu.lmp") );
+		if (m_skill_cursor < 4)
+			M_DrawQuakeCursor (x - 18, y + m_skill_cursor * 20);
+		y += 4 * 20;
 	}
 	else
 	{
@@ -2079,8 +2077,27 @@ void M_Skill_Draw (void)
 		};
 
 		for (f = 0; f < 4; f++)
-			M_Print (88, 48+4 + f*16, skills[f]);
-		M_DrawArrowCursor (72, 48+4 + m_skill_cursor*16);
+			M_PrintEx (x, y + f*16 + 2, 12, skills[f]);
+		if (m_skill_cursor < 4)
+			M_DrawArrowCursor (x - 16, y + m_skill_cursor*16 + 4);
+		y += 4 * 16;
+	}
+
+	if (m_skill_canresume)
+	{
+		y += 8;
+		M_Print (x, y, "Resume last game");
+		if (m_skill_lastplayed)
+		{
+			char	duration[32];
+			time_t	now;
+
+			time (&now);
+			COM_DescribeDuration (duration, sizeof (duration), difftime (m_skill_lastplayed, now));
+			M_Print (x, y + 8, va ("from %s ago", duration));
+		}
+		if (m_skill_cursor == 4)
+			M_DrawArrowCursor (x - 16, y);
 	}
 }
 
@@ -2101,14 +2118,14 @@ void M_Skill_Key (int key)
 
 	case K_DOWNARROW:
 		M_ThrottledSound ("misc/menu1.wav");
-		if (++m_skill_cursor > 3)
+		if (++m_skill_cursor > m_skill_numoptions - 1)
 			m_skill_cursor = 0;
 		break;
 
 	case K_UPARROW:
 		M_ThrottledSound ("misc/menu1.wav");
 		if (--m_skill_cursor < 0)
-			m_skill_cursor = 3;
+			m_skill_cursor = m_skill_numoptions - 1;
 		break;
 
 	case K_ENTER:
@@ -2119,22 +2136,35 @@ void M_Skill_Key (int key)
 		key_dest = key_game;
 		if (sv.active)
 			Cbuf_AddText ("disconnect\n");
-		Cbuf_AddText (va ("skill %d\n", m_skill_cursor));
-		Cbuf_AddText ("maxplayers 1\n");
-		Cbuf_AddText ("deathmatch 0\n"); //johnfitz
-		Cbuf_AddText ("coop 0\n"); //johnfitz
-		Cbuf_AddText (va ("map \"%s\"\n", m_skill_mapname));
+		if (m_skill_cursor == 4)
+		{
+			// Resume autosave
+			Cbuf_AddText (va ("load \"autosave/%s\"\n", m_skill_mapname));
+		}
+		else
+		{
+			// Fresh start
+			Cbuf_AddText (va ("skill %d\n", m_skill_cursor));
+			Cbuf_AddText ("maxplayers 1\n");
+			Cbuf_AddText ("deathmatch 0\n"); //johnfitz
+			Cbuf_AddText ("coop 0\n"); //johnfitz
+			Cbuf_AddText (va ("map \"%s\"\n", m_skill_mapname));
+		}
 		break;
 	}
 }
 
 void M_Skill_Mousemove (int cx, int cy)
 {
+	int ybase = 48;
+	int itemheight = m_skill_usegfx ? 20 : 16;
 	int prev = m_skill_cursor;
-	if (m_skill_usegfx)
-		M_UpdateCursor (cy, 48, 20, 4, &m_skill_cursor);
+
+	if (m_skill_numoptions > 4 && cy > ybase + 4 * itemheight + 8/2)
+		m_skill_cursor = 4;
 	else
-		M_UpdateCursor (cy, 48, 16, 4, &m_skill_cursor);
+		M_UpdateCursor (cy, ybase, itemheight, 4, &m_skill_cursor);
+
 	if (m_skill_cursor != prev)
 		M_MouseSound ("misc/menu1.wav");
 }
