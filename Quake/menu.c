@@ -67,7 +67,6 @@ extern char crosshair_char;
 extern qboolean quake64;
 
 extern void StartCalibration(void);
-extern qboolean IsCalibrationZero(void);
 
 enum m_state_e m_state;
 extern qboolean	keydown[256];

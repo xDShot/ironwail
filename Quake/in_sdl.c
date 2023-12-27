@@ -1068,11 +1068,6 @@ void StartCalibration(void)
 	updates_countdown = 300;
 }
 
-qboolean IsCalibrationZero(void)
-{
-	return (!gyro_calibration_x.value && !gyro_calibration_y.value && !gyro_calibration_z.value);
-}
-
 void IN_SendKeyEvents (void)
 {
 	SDL_Event event;
