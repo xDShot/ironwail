@@ -3123,51 +3123,6 @@ void CalibrationFinishedCallback(void)
 
 /*
 ================
-GYRO_Menu_ChooseNextMode
-
-chooses next gyro mode in order, then updates gyro_mode cvar
-================
-*/
-static void GYRO_Menu_ChooseNextMode (int dir)
-{
-	int i, current = (int)gyro_mode.value;
-
-	if (dir < 0)
-		for (i = 0; i < 5 && i <= current; i++)
-			;
-	else
-		for (i = 5 - 1; i >= 0 && i >= current; i--)
-			;
-
-	if (i < 0)
-		i = 5 - 1;
-	else if (i == 5)
-		i = 0;
-
-	Cvar_SetValueQuick (&gyro_mode, i);
-}
-
-/*
-================
-GYRO_Menu_ToggleTurningAxis
-
-toggles the turning axis, then updates gyro_turning axis cvar
-================
-*/
-static void GYRO_Menu_ToggleTurningAxis (int dir)
-{
-	int i, current = (int)gyro_turning_axis.value;
-
-	if (current)
-		i = 0;
-	else
-		i = 1;
-
-	Cvar_SetValueQuick (&gyro_turning_axis, i);
-}
-
-/*
-================
 GYRO_Menu_Calibration
 
 starts gyro calibration
@@ -3690,10 +3645,10 @@ void M_AdjustSliders (int dir)
 	// Gyro Options
 	//
 	case GYRO_OPT_MODE:
-		GYRO_Menu_ChooseNextMode(-dir);
+		Cvar_SetValueQuick (&gyro_mode, (int)(q_max (gyro_mode.value, 0.f) + 5 + dir) % 5);
 		break;
 	case GYRO_OPT_TURNINGAXIS:
-		GYRO_Menu_ToggleTurningAxis(-dir);
+		Cbuf_AddText ("toggle gyro_turning_axis\n");
 		break;
 	case GYRO_OPT_SENSX:
 		Cvar_SetValueQuick (&gyro_yawsensitivity, CLAMP (MIN_GYRO_SENS, gyro_yawsensitivity.value + dir * .1f, MAX_GYRO_SENS));
