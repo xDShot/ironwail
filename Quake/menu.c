@@ -3080,17 +3080,17 @@ void M_Calibration_Draw (void)
 {
 	int x;
 	x = (320-27*8)/2;
-	M_DrawTextBox (x, 108, 27, 1);
+	M_DrawTextBox (x, 72, 27, 1);
 
 	if (! calibrationComplete)
 	{
 		x += 16;
-		M_Print (x, 116, "Calibrating, please wait...");
+		M_Print (x, 80, "Calibrating, please wait...");
 	}
 	else
 	{
 		x += 32;
-		M_Print (x, 116, "Calibration Complete!");
+		M_Print (x, 80, "Calibration complete!");
 		if ((realtime - calibrationCompleteTime) > 2.0)
 			m_state = m_gyro;
 	}
@@ -4085,11 +4085,15 @@ void M_Options_Draw (void)
 		y += 8;
 	}
 
-	if (m_state == m_gyro)
+	if (m_state == m_gyro && M_Options_GetSelected () == GYRO_OPT_CALIBRATE)
 	{
-		M_Print (x, y, "To calibrate, place the controller");
+		x += 32;
 		y += 8;
-		M_Print (x, y, "on a flat, stable surface");
+		M_PrintWhite (x, y, "Before calibrating");
+		y += 8;
+		M_PrintWhite (x, y, "place the controller");
+		y += 8;
+		M_PrintWhite (x, y, "on a flat, stable surface");
 	}
 
 }
