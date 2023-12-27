@@ -3073,7 +3073,7 @@ void M_Menu_Calibration_f (void)
 	IN_DeactivateForMenu();
 	m_state = m_calibration;
 	calibrationComplete = false;
-	Con_Printf("Calibrating, please wait...");
+	Con_Printf("Calibrating, please wait...\n");
 	StartCalibration();
 }
 
@@ -3110,7 +3110,7 @@ called from in_sdl once calibration is finished
 */
 void CalibrationFinishedCallback(void)
 {
-	Con_Printf("Calibration finished");
+	Con_Printf("Calibration finished\n");
 	calibrationComplete = true;
 	calibrationCompleteTime = realtime;
 }
