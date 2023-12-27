@@ -3346,6 +3346,9 @@ static void M_Options_UpdateLayout (void)
 		optionsmenu.yofs = 0;
 
 	height = OPTIONS_LISTOFS + optionsmenu.yofs + optionsmenu.list.numitems * 8;
+	// Enforce a minimum height, so that if the number of items is relatively small
+	// the title pic doesn't get drawn below its usual position
+	height = q_max (height, 192);
 	if (height <= m_height)
 	{
 		optionsmenu.y = (m_top + (m_height - height) / 2) & ~7;
