@@ -57,10 +57,17 @@ extern cvar_t r_oit;
 extern cvar_t r_alphasort;
 extern cvar_t r_lerpmodels;
 extern cvar_t r_lerpmove;
+extern cvar_t gyro_mode;
+extern cvar_t gyro_turning_axis;
+extern cvar_t gyro_pitchsensitivity;
+extern cvar_t gyro_yawsensitivity;
 
 extern char crosshair_char;
 
 extern qboolean quake64;
+
+extern void StartCalibration(void);
+extern qboolean IsCalibrationZero(void);
 
 enum m_state_e m_state;
 extern qboolean	keydown[256];
@@ -86,6 +93,7 @@ void M_Menu_Main_f (void);
 	void M_Menu_Options_f (void);
 		void M_Menu_Keys_f (void);
 		void M_Menu_Video_f (void);
+		void M_Menu_Gyro_f (void);
 	void M_Menu_Mods_f (void);
 		void M_Menu_ModInfo_f (const filelist_item_t *item);
 	void M_Menu_Help_f (void);
@@ -107,6 +115,7 @@ void M_Main_Draw (void);
 	void M_Options_Draw (void);
 		void M_Keys_Draw (void);
 		void M_Video_Draw (void);
+		void M_Gyro_Draw (void);
 	void M_Mods_Draw (void);
 		void M_ModInfo_Draw (void);
 	void M_Help_Draw (void);
@@ -128,6 +137,7 @@ void M_Main_Key (int key);
 	void M_Options_Key (int key);
 		void M_Keys_Key (int key);
 		void M_Video_Key (int key);
+		void M_Gyro_Key (int key);
 	void M_Mods_Key (int key);
 		void M_ModInfo_Key (int key);
 	void M_Help_Key (int key);
@@ -149,6 +159,7 @@ void M_Main_Mousemove (int cx, int cy);
 	void M_Options_Mousemove (int cx, int cy);
 		void M_Keys_Mousemove (int cx, int cy);
 		void M_Video_Mousemove (int cx, int cy);
+		void M_Gyro_Mousemove (int cx, int cy);
 	void M_Mods_Mousemove (int cx, int cy);
 	//void M_Help_Mousemove (int cx, int cy);
 	//void M_Quit_Mousemove (int cx, int cy);
@@ -3052,12 +3063,139 @@ void M_Menu_Video_f (void)
 }
 
 //=============================================================================
+/* CALIBRATION SCREEN */
+
+qboolean calibrationComplete;
+double calibrationCompleteTime;
+
+void M_Menu_Calibration_f (void)
+{
+	IN_DeactivateForMenu();
+	m_state = m_calibration;
+	calibrationComplete = false;
+	Con_Printf("Calibrating, please wait...");
+	StartCalibration();
+}
+
+void M_Calibration_Draw (void)
+{
+	int x;
+	x = (320-27*8)/2;
+	M_DrawTextBox (x, 108, 27, 1);
+
+	if (! calibrationComplete)
+	{
+		x += 16;
+		M_Print (x, 116, "Calibrating, please wait...");
+	}
+	else
+	{
+		x += 32;
+		M_Print (x, 116, "Calibration Complete!");
+		if ((realtime - calibrationCompleteTime) > 2.0)
+			m_state = m_gyro;
+	}
+}
+
+void M_Calibration_Key (int key)
+{
+}
+
+/*
+================
+CalibrationFinishedCallback
+
+called from in_sdl once calibration is finished
+================
+*/
+void CalibrationFinishedCallback(void)
+{
+	Con_Printf("Calibration finished");
+	calibrationComplete = true;
+	calibrationCompleteTime = realtime;
+}
+
+//=============================================================================
+/* GYRO MENU */
+
+#define MIN_GYRO_SENS 0.1
+#define MAX_GYRO_SENS 8
+
+/*
+================
+GYRO_Menu_ChooseNextMode
+
+chooses next gyro mode in order, then updates gyro_mode cvar
+================
+*/
+static void GYRO_Menu_ChooseNextMode (int dir)
+{
+	int i, current = (int)gyro_mode.value;
+
+	if (dir < 0)
+		for (i = 0; i < 5 && i <= current; i++)
+			;
+	else
+		for (i = 5 - 1; i >= 0 && i >= current; i--)
+			;
+
+	if (i < 0)
+		i = 5 - 1;
+	else if (i == 5)
+		i = 0;
+
+	Cvar_SetValueQuick (&gyro_mode, i);
+}
+
+/*
+================
+GYRO_Menu_ToggleTurningAxis
+
+toggles the turning axis, then updates gyro_turning axis cvar
+================
+*/
+static void GYRO_Menu_ToggleTurningAxis (int dir)
+{
+	int i, current = (int)gyro_turning_axis.value;
+
+	if (current)
+		i = 0;
+	else
+		i = 1;
+
+	Cvar_SetValueQuick (&gyro_turning_axis, i);
+}
+
+/*
+================
+GYRO_Menu_Calibration
+
+starts gyro calibration
+================
+*/
+static void GYRO_Menu_Calibration(int dir)
+{
+	M_Menu_Calibration_f();
+}
+
+/*
+================
+M_Menu_Gyro_f
+================
+*/
+void M_Menu_Gyro_f (void)
+{
+	M_Options_Init (m_gyro);
+}
+
+//=============================================================================
 /* OPTIONS MENU */
 
 ////////////////////////////////////////////////////
 #define OPTIONS_LIST(def)							\
 	def (OPT_VIDEO,			"Video Options")		\
 	def (OPT_CUSTOMIZE,		"Controls")				\
+	def (OPT_GYRO,			"Gyro Options")			\
 	def (OPT_MODS,			"Mods")					\
 	def (OPT_CONSOLE,		"Go To Console")		\
 	def (OPT_DEFAULTS,		"Reset Config")			\
@@ -3115,12 +3253,26 @@ void M_Menu_Video_f (void)
 	def (VID_OPT_FPSLIMIT,		"FPS Limit")		\
 	def (VID_OPT_SHOWFPS,		"Show FPS")			\
 ////////////////////////////////////////////////////
+#define GYRO_OPTIONS_LIST(def)						\
+	def(GYRO_OPT_MODE,			"Gyro Mode")		\
+	def(GYRO_OPT_TURNINGAXIS,	"Turning Axis")		\
+													\
+	def(GYRO_OPT_SPACE1,		"")					\
+													\
+	def(GYRO_OPT_SENSX,			"Yaw Speed")	\
+	def(GYRO_OPT_SENSY,			"Pitch Speed")\
+													\
+	def(GYRO_OPT_SPACE2,		"")					\
+													\
+	def(GYRO_OPT_CALIBRATE,		"Calibrate")		\
+////////////////////////////////////////////////////
 
 enum
 {
 	#define ADD_OPTION_ENUM(id, name) id,
 	OPTIONS_LIST (ADD_OPTION_ENUM)
 	VIDEO_OPTIONS_LIST(ADD_OPTION_ENUM)
+	GYRO_OPTIONS_LIST(ADD_OPTION_ENUM)
 	#undef ADD_OPTION_ENUM
 
 	#define COUNT_OPTION(id, name) +1
@@ -3128,6 +3280,8 @@ enum
 	OPTIONS_ITEMS			= OPTIONS_LIST (COUNT_OPTION),
 	VIDEO_OPTIONS_FIRST		= OPTIONS_ITEMS,
 	VIDEO_OPTIONS_ITEMS		= VIDEO_OPTIONS_LIST (COUNT_OPTION),
+	GYRO_OPTIONS_FIRST		= OPTIONS_ITEMS + VIDEO_OPTIONS_ITEMS,
+	GYRO_OPTIONS_ITEMS		= GYRO_OPTIONS_LIST (COUNT_OPTION),
 	#undef COUNT_OPTION
 };
 
@@ -3136,6 +3290,7 @@ static const char *const options_names[] =
 	#define ADD_OPTION_NAME(id, name) name,
 	OPTIONS_LIST (ADD_OPTION_NAME)
 	VIDEO_OPTIONS_LIST(ADD_OPTION_NAME)
+	GYRO_OPTIONS_LIST(ADD_OPTION_NAME)
 	#undef ADD_OPTION_NAME
 };
 
@@ -3164,6 +3319,7 @@ struct
 	int				first_item;
 	int				options_cursor;
 	int				video_cursor;
+	int				gyro_cursor;
 	int				*last_cursor;
 } optionsmenu;
 
@@ -3258,6 +3414,13 @@ void M_Options_Init (enum m_state_e state)
 
 		//set up rate list based on current cvars
 		VID_Menu_RebuildRateList ();
+	}
+	else if (state == m_gyro)
+	{
+		optionsmenu.first_item = GYRO_OPTIONS_FIRST;
+		optionsmenu.list.numitems = GYRO_OPTIONS_ITEMS;
+		optionsmenu.last_cursor = &optionsmenu.gyro_cursor;
+		optionsmenu.subtitle = "Gyro Options";
 	}
 	else
 	{
@@ -3520,6 +3683,25 @@ void M_AdjustSliders (int dir)
 		Cbuf_AddText ("toggle scr_showfps\n");
 		break;
 
+	//
+	// Gyro Options
+	//
+	case GYRO_OPT_MODE:
+		GYRO_Menu_ChooseNextMode(-dir);
+		break;
+	case GYRO_OPT_TURNINGAXIS:
+		GYRO_Menu_ToggleTurningAxis(-dir);
+		break;
+	case GYRO_OPT_SENSX:
+		Cvar_SetValueQuick (&gyro_yawsensitivity, CLAMP (MIN_GYRO_SENS, gyro_yawsensitivity.value + dir * .1f, MAX_GYRO_SENS));
+		break;
+	case GYRO_OPT_SENSY:
+		Cvar_SetValueQuick (&gyro_pitchsensitivity, CLAMP (MIN_GYRO_SENS, gyro_pitchsensitivity.value + dir * .1f, MAX_GYRO_SENS));
+		break;
+	case GYRO_OPT_CALIBRATE:
+		GYRO_Menu_Calibration(-dir);
+		break;
+
 	default:
 		break;
 	}
@@ -3607,6 +3789,14 @@ qboolean M_SetSliderValue (int option, float f)
 	case OPT_FOVDISTORT:	// FOV distortion
 		Cvar_SetValue ("cl_gun_fovscale", 1.f - f);
 		return true;
+	case GYRO_OPT_SENSX:
+		f = LERP (MIN_GYRO_SENS, MAX_GYRO_SENS, f);
+		Cvar_SetValue ("gyro_yawsensitivity", f);
+		return true;
+	case GYRO_OPT_SENSY:
+		f = LERP (MIN_GYRO_SENS, MAX_GYRO_SENS, f);
+		Cvar_SetValue ("gyro_pitchsensitivity", f);
+		return true;
 	default:
 		return false;
 	}
@@ -3667,6 +3857,7 @@ static void M_Options_DrawItem (int y, int item)
 	{
 	case OPT_VIDEO:
 	case OPT_CUSTOMIZE:
+	case OPT_GYRO:
 	case OPT_MODS:
 		M_Print (x - 4, y, "...");
 		break;
@@ -3856,6 +4047,35 @@ static void M_Options_DrawItem (int y, int item)
 		M_Print (x, y, scr_showfps.value ? "On" : "Off");
 		break;
 
+	//
+	// Gyro Options
+	//
+	case GYRO_OPT_MODE:
+		switch ((int)gyro_mode.value)
+		{
+		case 1:		M_Print (x, y, "off, button enables"); break;
+		case 2:		M_Print (x, y, "on, button disables"); break;
+		case 3:		M_Print (x, y, "always on"); break;
+		case 4:		M_Print (x, y, "on, button inverts direction"); break;
+		default:	M_Print (x, y, "off"); break;
+		}
+		break;
+
+	case GYRO_OPT_TURNINGAXIS:
+		M_Print(x, y, gyro_turning_axis.value ? "roll (lean)" : "yaw (turn)");
+		break;
+
+	case GYRO_OPT_SENSX:
+		r = (gyro_yawsensitivity.value - MIN_GYRO_SENS) / (MAX_GYRO_SENS - MIN_GYRO_SENS);
+		M_DrawSlider (x, y, r);
+		break;
+	case GYRO_OPT_SENSY:
+		r = (gyro_pitchsensitivity.value - MIN_GYRO_SENS) / (MAX_GYRO_SENS - MIN_GYRO_SENS);
+		M_DrawSlider (x, y, r);
+		break;
+	case GYRO_OPT_CALIBRATE:
+		break;
+
 	default:
 		break;
 	}
@@ -3907,6 +4127,14 @@ void M_Options_Draw (void)
 
 		y += 8;
 	}
+
+	if (m_state == m_gyro)
+	{
+		M_Print (x, y, "To calibrate, place the controller");
+		y += 8;
+		M_Print (x, y, "on a flat, stable surface");
+	}
+
 }
 
 void M_Options_Key (int k)
@@ -3973,6 +4201,9 @@ void M_Options_Key (int k)
 			break;
 		case OPT_VIDEO:
 			M_Menu_Video_f ();
+			break;
+		case OPT_GYRO:
+			M_Menu_Gyro_f ();
 			break;
 
 		case VID_OPT_TEST:
@@ -4062,6 +4293,7 @@ static const char* const bindnames[][2] =
 	{"centerview",		"Center view"},
 	{"zoom_in",			"Toggle zoom"},
 	{"+zoom",			"Quick zoom"},
+	{"+gyroaction",		"Gyro Off / On"},
 	{"",				""},
 	{"+attack",			"Attack"},
 	{"impulse 10",		"Next weapon"},
@@ -6080,6 +6312,7 @@ void M_Init (void)
 	Cmd_AddCommand ("menu_options", M_Menu_Options_f);
 	Cmd_AddCommand ("menu_keys", M_Menu_Keys_f);
 	Cmd_AddCommand ("menu_video", M_Menu_Video_f);
+	Cmd_AddCommand ("menu_gyro", M_Menu_Gyro_f);
 	Cmd_AddCommand ("help", M_Menu_Help_f);
 	Cmd_AddCommand ("menu_quit", M_Menu_Quit_f);
 	Cmd_AddCommand ("menu_credits", M_Menu_Credits_f); // needed by the 2021 re-release
@@ -6182,8 +6415,13 @@ void M_Draw (void)
 		M_Net_Draw ();
 		break;
 
+	case m_calibration:
+		M_Calibration_Draw ();
+		break;
+
 	case m_options:
 	case m_video:
+	case m_gyro:
 		M_Options_Draw ();
 		break;
 
@@ -6286,8 +6524,13 @@ void M_Keydown (int key)
 		M_Net_Key (key);
 		return;
 
+	case m_calibration:
+		M_Calibration_Key (key);
+		break;
+
 	case m_options:
 	case m_video:
+	case m_gyro:
 		M_Options_Key (key);
 		return;
 
@@ -6396,6 +6639,7 @@ void M_Mousemove (int x, int y)
 
 	case m_options:
 	case m_video:
+	case m_gyro:
 		M_Options_Mousemove (x, y);
 		return;
 
@@ -6455,6 +6699,7 @@ void M_Charinput (int key)
 		return;
 	case m_options:
 	case m_video:
+	case m_gyro:
 		M_Options_Char (key);
 		return;
 	case m_keys:
@@ -6482,6 +6727,7 @@ qboolean M_TextEntry (void)
 		return M_Mods_TextEntry ();
 	case m_options:
 	case m_video:
+	case m_gyro:
 		return M_Options_TextEntry ();
 	case m_keys:
 		return M_Keys_TextEntry ();
