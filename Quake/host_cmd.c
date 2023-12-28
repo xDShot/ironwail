@@ -2678,7 +2678,7 @@ static void Host_Loadgame_f (void)
 		Host_Reconnect_f ();
 	}
 
-	if (cls.state != ca_dedicated)
+	if (cls.state != ca_dedicated && key_dest == key_game)
 		IN_Activate(); // moved to here from M_Load_Key()
 }
 
