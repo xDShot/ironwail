@@ -810,6 +810,7 @@ void IN_JoyMove (usercmd_t *cmd)
 
 void IN_GyroMove(usercmd_t *cmd)
 {
+	float scale;
 	if (!joy_enable.value)
 		return;
 
@@ -822,17 +823,9 @@ void IN_GyroMove(usercmd_t *cmd)
 	if (CL_InCutscene ())
 		return;
 
-	float gyroViewFactor = (1.0f / M_PI) * host_frametime/0.01666f;
-
-	if (gyro_yaw)
-	{
-		cl.viewangles[YAW] += m_yaw.value * gyro_yawsensitivity.value * cl_yawspeed.value * gyro_yaw * gyroViewFactor * gyro_dir;
-	}
-
-	if (gyro_pitch)
-	{
-		cl.viewangles[PITCH] -= m_pitch.value * gyro_pitchsensitivity.value * cl_pitchspeed.value * gyro_pitch * gyroViewFactor * gyro_dir;
-	}
+	scale = (180.f / M_PI) * gyro_dir * host_frametime;
+	cl.viewangles[YAW] += scale * gyro_yaw * gyro_yawsensitivity.value;
+	cl.viewangles[PITCH] -= scale * gyro_pitch * gyro_pitchsensitivity.value;
 
 	/* johnfitz -- variable pitch clamping */
 	if (cl.viewangles[PITCH] > cl_maxpitch.value)
