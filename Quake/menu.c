@@ -1912,9 +1912,9 @@ void M_Maps_Char (int key)
 	M_List_Char (&mapsmenu.list, key);
 }
 
-qboolean M_Maps_TextEntry (void)
+textmode_t M_Maps_TextEntry (void)
 {
-	return !mapsmenu.scrollbar_grab;
+	return mapsmenu.scrollbar_grab ? TEXTMODE_OFF : TEXTMODE_NOPOPUP;
 }
 
 void M_Maps_Key (int key)
@@ -2462,9 +2462,9 @@ void M_Setup_Char (int k)
 }
 
 
-qboolean M_Setup_TextEntry (void)
+textmode_t M_Setup_TextEntry (void)
 {
-	return (setup_cursor == 0 || setup_cursor == 1);
+	return (setup_cursor == 0 || setup_cursor == 1) ? TEXTMODE_ON : TEXTMODE_OFF;
 }
 
 
@@ -4331,9 +4331,9 @@ void M_Options_Key (int k)
 	}
 }
 
-qboolean M_Options_TextEntry (void)
+textmode_t M_Options_TextEntry (void)
 {
-	return !slider_grab;
+	return slider_grab ? TEXTMODE_OFF : TEXTMODE_NOPOPUP;
 }
 
 void M_Options_Char (int key)
@@ -4633,9 +4633,9 @@ void M_Keys_Mousemove (int cx, int cy)
 	M_List_Mousemove (&keysmenu.list, cy - keysmenu.y - KEYLIST_OFS);
 }
 
-qboolean M_Keys_TextEntry (void)
+textmode_t M_Keys_TextEntry (void)
 {
-	return !bind_grab;
+	return bind_grab ? TEXTMODE_OFF : TEXTMODE_NOPOPUP;
 }
 
 void M_Keys_Char (int key)
@@ -4835,9 +4835,9 @@ void M_Quit_Char (int key)
 }
 
 
-qboolean M_Quit_TextEntry (void)
+textmode_t M_Quit_TextEntry (void)
 {
-	return true;
+	return TEXTMODE_NOPOPUP;
 }
 
 
@@ -5087,9 +5087,9 @@ void M_LanConfig_Char (int key)
 }
 
 
-qboolean M_LanConfig_TextEntry (void)
+textmode_t M_LanConfig_TextEntry (void)
 {
-	return (lanConfig_cursor == 0 || lanConfig_cursor == 2);
+	return (lanConfig_cursor == 0 || lanConfig_cursor == 2) ? TEXTMODE_ON : TEXTMODE_OFF;
 }
 
 
@@ -6050,9 +6050,9 @@ void M_Mods_Char (int key)
 	M_List_Char (&modsmenu.list, key);
 }
 
-qboolean M_Mods_TextEntry (void)
+textmode_t M_Mods_TextEntry (void)
 {
-	return !modsmenu.scrollbar_grab;
+	return modsmenu.scrollbar_grab ? TEXTMODE_OFF : TEXTMODE_NOPOPUP;
 }
 
 void M_Mods_Key (int key)
@@ -6801,7 +6801,7 @@ void M_Charinput (int key)
 }
 
 
-qboolean M_TextEntry (void)
+textmode_t M_TextEntry (void)
 {
 	switch (m_state)
 	{
@@ -6822,7 +6822,7 @@ qboolean M_TextEntry (void)
 	case m_keys:
 		return M_Keys_TextEntry ();
 	default:
-		return false;
+		return TEXTMODE_OFF;
 	}
 }
 

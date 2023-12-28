@@ -1115,6 +1115,11 @@ void Key_EventWithKeycode (int key, qboolean down, int keycode)
 		return;
 	}
 
+// generate char events if we want text input without popping up an on-screen keyboard
+// when a physical one isn't present, e.g. when using a searchable menu on the Steam Deck
+	if (down && IN_GetTextMode () == TEXTMODE_NOPOPUP)
+		Char_Event (keycode);
+
 // handle escape specialy, so the user can never unbind it
 	if (key == K_ESCAPE)
 	{
@@ -1270,30 +1275,30 @@ void Char_Event (int key)
 Key_TextEntry
 ===================
 */
-qboolean Key_TextEntry (void)
+textmode_t Key_TextEntry (void)
 {
 	if (key_inputgrab.active)
 	{
 		// This path is used for simple single-letter inputs (y/n prompts) that also
 		// accept controller input, so we don't want an onscreen keyboard for this case.
-		return false;
+		return TEXTMODE_NOPOPUP;
 	}
 
 	switch (key_dest)
 	{
 	case key_message:
-		return true;
+		return TEXTMODE_ON;
 	case key_menu:
 		return M_TextEntry();
 	case key_game:
 		// Don't return true even during con_forcedup, because that happens while starting a
 		// game and we don't to trigger text input (and the onscreen keyboard on some devices)
 		// during this.
-		return false;
+		return TEXTMODE_OFF;
 	case key_console:
-		return true;
+		return TEXTMODE_ON;
 	default:
-		return false;
+		return TEXTMODE_OFF;
 	}
 }
 

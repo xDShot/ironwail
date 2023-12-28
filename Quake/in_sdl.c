@@ -35,7 +35,7 @@ extern cvar_t ui_mouse;
 extern cvar_t language;
 
 static qboolean windowhasfocus = true;	//just in case sdl fails to tell us...
-static qboolean	textmode;
+static textmode_t textmode = TEXTMODE_OFF;
 
 static cvar_t in_debugkeys = {"in_debugkeys", "0", CVAR_NONE};
 
@@ -405,7 +405,7 @@ void IN_Init (void)
 {
 	textmode = Key_TextEntry();
 
-	if (textmode)
+	if (textmode == TEXTMODE_ON)
 		SDL_StartTextInput();
 	else
 		SDL_StopTextInput();
@@ -896,11 +896,11 @@ void IN_ClearStates (void)
 
 void IN_UpdateInputMode (void)
 {
-	qboolean want_textmode = Key_TextEntry();
+	textmode_t want_textmode = Key_TextEntry();
 	if (textmode != want_textmode)
 	{
 		textmode = want_textmode;
-		if (textmode)
+		if (textmode == TEXTMODE_ON)
 		{
 			SDL_StartTextInput();
 			if (in_debugkeys.value)
@@ -913,6 +913,11 @@ void IN_UpdateInputMode (void)
 				Con_Printf("SDL_StopTextInput time: %g\n", Sys_DoubleTime());
 		}
 	}
+}
+
+textmode_t IN_GetTextMode (void)
+{
+	return textmode;
 }
 
 static inline int IN_SDL2_ScancodeToQuakeKey(SDL_Scancode scancode)
