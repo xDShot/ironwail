@@ -57,6 +57,16 @@ extern cvar_t r_oit;
 extern cvar_t r_alphasort;
 extern cvar_t r_lerpmodels;
 extern cvar_t r_lerpmove;
+extern cvar_t joy_deadzone_look;
+extern cvar_t joy_deadzone_move;
+extern cvar_t joy_deadzone_trigger;
+extern cvar_t joy_sensitivity_yaw;
+extern cvar_t joy_sensitivity_pitch;
+extern cvar_t joy_invert;
+extern cvar_t joy_exponent;
+extern cvar_t joy_exponent_move;
+extern cvar_t joy_swapmovelook;
+extern cvar_t joy_enable;
 extern cvar_t gyro_mode;
 extern cvar_t gyro_turning_axis;
 extern cvar_t gyro_pitchsensitivity;
@@ -92,7 +102,7 @@ void M_Menu_Main_f (void);
 	void M_Menu_Options_f (void);
 		void M_Menu_Keys_f (void);
 		void M_Menu_Video_f (void);
-		void M_Menu_Gyro_f (void);
+		void M_Menu_Gamepad_f (void);
 	void M_Menu_Mods_f (void);
 		void M_Menu_ModInfo_f (const filelist_item_t *item);
 	void M_Menu_Help_f (void);
@@ -113,8 +123,8 @@ void M_Main_Draw (void);
 		void M_ServerList_Draw (void);
 	void M_Options_Draw (void);
 		void M_Keys_Draw (void);
-		void M_Video_Draw (void);
-		void M_Gyro_Draw (void);
+		//void M_Video_Draw (void);
+		//void M_Gamepad_Draw (void);
 	void M_Mods_Draw (void);
 		void M_ModInfo_Draw (void);
 	void M_Help_Draw (void);
@@ -135,8 +145,8 @@ void M_Main_Key (int key);
 		void M_ServerList_Key (int key);
 	void M_Options_Key (int key);
 		void M_Keys_Key (int key);
-		void M_Video_Key (int key);
-		void M_Gyro_Key (int key);
+		//void M_Video_Key (int key);
+		//void M_Gamepad_Key (int key);
 	void M_Mods_Key (int key);
 		void M_ModInfo_Key (int key);
 	void M_Help_Key (int key);
@@ -157,8 +167,8 @@ void M_Main_Mousemove (int cx, int cy);
 		void M_ServerList_Mousemove (int cx, int cy);
 	void M_Options_Mousemove (int cx, int cy);
 		void M_Keys_Mousemove (int cx, int cy);
-		void M_Video_Mousemove (int cx, int cy);
-		void M_Gyro_Mousemove (int cx, int cy);
+		//void M_Video_Mousemove (int cx, int cy);
+		//void M_Gamepad_Mousemove (int cx, int cy);
 	void M_Mods_Mousemove (int cx, int cy);
 	//void M_Help_Mousemove (int cx, int cy);
 	//void M_Quit_Mousemove (int cx, int cy);
@@ -3092,7 +3102,7 @@ void M_Calibration_Draw (void)
 		x += 32;
 		M_Print (x, 80, "Calibration complete!");
 		if ((realtime - calibrationCompleteTime) > 2.0)
-			m_state = m_gyro;
+			m_state = m_gamepad;
 	}
 }
 
@@ -3115,10 +3125,18 @@ void CalibrationFinishedCallback(void)
 }
 
 //=============================================================================
-/* GYRO MENU */
+/* GAMEPAD MENU */
 
-#define MIN_GYRO_SENS 0.1
-#define MAX_GYRO_SENS 8
+#define MIN_JOY_SENS			60.f
+#define MAX_JOY_SENS			720.f
+#define MIN_JOY_EXPONENT		1.f
+#define MAX_JOY_EXPONENT		5.f
+#define MIN_STICK_DEADZONE		0.f
+#define MAX_STICK_DEADZONE		0.75f
+#define MIN_TRIGGER_DEADZONE	0.f
+#define MAX_TRIGGER_DEADZONE	0.75f
+#define MIN_GYRO_SENS			0.1f
+#define MAX_GYRO_SENS			8.f
 
 /*
 ================
@@ -3127,19 +3145,19 @@ GYRO_Menu_Calibration
 starts gyro calibration
 ================
 */
-static void GYRO_Menu_Calibration(int dir)
+static void GYRO_Menu_Calibration (void)
 {
 	M_Menu_Calibration_f();
 }
 
 /*
 ================
-M_Menu_Gyro_f
+M_Menu_Gamepad_f
 ================
 */
-void M_Menu_Gyro_f (void)
+void M_Menu_Gamepad_f (void)
 {
-	M_Options_Init (m_gyro);
+	M_Options_Init (m_gamepad);
 }
 
 //=============================================================================
@@ -3149,7 +3167,7 @@ void M_Menu_Gyro_f (void)
 #define OPTIONS_LIST(def)							\
 	def (OPT_VIDEO,			"Video Options")		\
 	def (OPT_CUSTOMIZE,		"Controls")				\
-	def (OPT_GYRO,			"Gyro Options")			\
+	def (OPT_GAMEPAD,		"Gamepad")				\
 	def (OPT_MODS,			"Mods")					\
 	def (OPT_CONSOLE,		"Go To Console")		\
 	def (OPT_DEFAULTS,		"Reset Config")			\
@@ -3207,18 +3225,34 @@ void M_Menu_Gyro_f (void)
 	def (VID_OPT_FPSLIMIT,		"FPS Limit")		\
 	def (VID_OPT_SHOWFPS,		"Show FPS")			\
 ////////////////////////////////////////////////////
-#define GYRO_OPTIONS_LIST(def)						\
-	def(GYRO_OPT_MODE,			"Gyro Mode")		\
-	def(GYRO_OPT_TURNINGAXIS,	"Turning Axis")		\
+#define GPAD_OPTIONS_LIST(def)						\
+	def(GPAD_OPT_ENABLE,		"Gamepad")			\
 													\
-	def(GYRO_OPT_SPACE1,		"")					\
+	def(GPAD_OPT_SPACE1,		"")					\
 													\
-	def(GYRO_OPT_SENSX,			"Yaw Speed")	\
-	def(GYRO_OPT_SENSY,			"Pitch Speed")\
+	def(GPAD_OPT_SENSX,			"Yaw Speed")		\
+	def(GPAD_OPT_SENSY,			"Pitch Speed")		\
+	def(GPAD_OPT_INVERT,		"Invert Pitch")		\
+	def(GPAD_OPT_SWAP_MOVELOOK,	"Look Stick")		\
 													\
-	def(GYRO_OPT_SPACE2,		"")					\
+	def(GPAD_OPT_SPACE2,		"")					\
 													\
-	def(GYRO_OPT_CALIBRATE,		"Calibrate")		\
+	def(GPAD_OPT_EXPONENT_LOOK,	"Look Accel")		\
+	def(GPAD_OPT_EXPONENT_MOVE,	"Move Accel")		\
+													\
+	def(GPAD_OPT_SPACE3,		"")					\
+													\
+	def(GPAD_OPT_DEADZONE_LOOK,	"Look Deadzone")	\
+	def(GPAD_OPT_DEADZONE_MOVE,	"Move Deadzone")	\
+	def(GPAD_OPT_DEADZONE_TRIG,	"Trigger Thresh")	\
+													\
+	def(GPAD_OPT_SPACE4,		"")					\
+													\
+	def(GPAD_OPT_GYROMODE,		"Gyro Mode")		\
+	def(GPAD_OPT_GYROAXIS,		"Gyro Axis")		\
+	def(GPAD_OPT_GYROSENSX,		"Gyro Yaw Speed")	\
+	def(GPAD_OPT_GYROSENSY,		"Gyro Pitch Speed")	\
+	def(GPAD_OPT_CALIBRATE,		"Calibrate")		\
 ////////////////////////////////////////////////////
 
 enum
@@ -3226,7 +3260,7 @@ enum
 	#define ADD_OPTION_ENUM(id, name) id,
 	OPTIONS_LIST (ADD_OPTION_ENUM)
 	VIDEO_OPTIONS_LIST(ADD_OPTION_ENUM)
-	GYRO_OPTIONS_LIST(ADD_OPTION_ENUM)
+	GPAD_OPTIONS_LIST(ADD_OPTION_ENUM)
 	#undef ADD_OPTION_ENUM
 
 	#define COUNT_OPTION(id, name) +1
@@ -3234,8 +3268,8 @@ enum
 	OPTIONS_ITEMS			= OPTIONS_LIST (COUNT_OPTION),
 	VIDEO_OPTIONS_FIRST		= OPTIONS_ITEMS,
 	VIDEO_OPTIONS_ITEMS		= VIDEO_OPTIONS_LIST (COUNT_OPTION),
-	GYRO_OPTIONS_FIRST		= OPTIONS_ITEMS + VIDEO_OPTIONS_ITEMS,
-	GYRO_OPTIONS_ITEMS		= GYRO_OPTIONS_LIST (COUNT_OPTION),
+	GPAD_OPTIONS_FIRST		= OPTIONS_ITEMS + VIDEO_OPTIONS_ITEMS,
+	GPAD_OPTIONS_ITEMS		= GPAD_OPTIONS_LIST (COUNT_OPTION),
 	#undef COUNT_OPTION
 };
 
@@ -3244,7 +3278,7 @@ static const char *const options_names[] =
 	#define ADD_OPTION_NAME(id, name) name,
 	OPTIONS_LIST (ADD_OPTION_NAME)
 	VIDEO_OPTIONS_LIST(ADD_OPTION_NAME)
-	GYRO_OPTIONS_LIST(ADD_OPTION_NAME)
+	GPAD_OPTIONS_LIST(ADD_OPTION_NAME)
 	#undef ADD_OPTION_NAME
 };
 
@@ -3273,7 +3307,7 @@ struct
 	int				first_item;
 	int				options_cursor;
 	int				video_cursor;
-	int				gyro_cursor;
+	int				gamepad_cursor;
 	int				*last_cursor;
 } optionsmenu;
 
@@ -3372,12 +3406,12 @@ void M_Options_Init (enum m_state_e state)
 		//set up rate list based on current cvars
 		VID_Menu_RebuildRateList ();
 	}
-	else if (state == m_gyro)
+	else if (state == m_gamepad)
 	{
-		optionsmenu.first_item = GYRO_OPTIONS_FIRST;
-		optionsmenu.list.numitems = GYRO_OPTIONS_ITEMS;
-		optionsmenu.last_cursor = &optionsmenu.gyro_cursor;
-		optionsmenu.subtitle = "Gyro Options";
+		optionsmenu.first_item = GPAD_OPTIONS_FIRST;
+		optionsmenu.list.numitems = GPAD_OPTIONS_ITEMS;
+		optionsmenu.last_cursor = &optionsmenu.gamepad_cursor;
+		optionsmenu.subtitle = "Gamepad Options";
 	}
 	else
 	{
@@ -3641,22 +3675,52 @@ void M_AdjustSliders (int dir)
 		break;
 
 	//
-	// Gyro Options
+	// Gamepad Options
 	//
-	case GYRO_OPT_MODE:
+	case GPAD_OPT_ENABLE:
+		Cvar_SetValueQuick (&joy_enable, !joy_enable.value);
+		break;
+	case GPAD_OPT_SENSX:
+		Cvar_SetValueQuick (&joy_sensitivity_yaw, CLAMP (MIN_JOY_SENS, joy_sensitivity_yaw.value + dir * 10.f, MAX_JOY_SENS));
+		break;
+	case GPAD_OPT_SENSY:
+		Cvar_SetValueQuick (&joy_sensitivity_pitch, CLAMP (MIN_JOY_SENS, joy_sensitivity_pitch.value + dir * 10.f, MAX_JOY_SENS));
+		break;
+	case GPAD_OPT_INVERT:
+		Cvar_SetValueQuick (&joy_invert, !joy_invert.value);
+		break;
+	case GPAD_OPT_SWAP_MOVELOOK:
+		Cvar_SetValueQuick (&joy_swapmovelook, !joy_swapmovelook.value);
+		break;
+	case GPAD_OPT_EXPONENT_LOOK:
+		Cvar_SetValueQuick (&joy_exponent, CLAMP (MIN_JOY_EXPONENT, joy_exponent.value + dir * 0.5f, MAX_JOY_EXPONENT));
+		break;
+	case GPAD_OPT_EXPONENT_MOVE:
+		Cvar_SetValueQuick (&joy_exponent_move, CLAMP (MIN_JOY_EXPONENT, joy_exponent_move.value + dir * 0.5f, MAX_JOY_EXPONENT));
+		break;
+	case GPAD_OPT_DEADZONE_LOOK:
+		Cvar_SetValueQuick (&joy_deadzone_look, CLAMP (MIN_STICK_DEADZONE, joy_deadzone_look.value + dir * 0.05f, MAX_STICK_DEADZONE));
+		break;
+	case GPAD_OPT_DEADZONE_MOVE:
+		Cvar_SetValueQuick (&joy_deadzone_move, CLAMP (MIN_STICK_DEADZONE, joy_deadzone_move.value + dir * 0.05f, MAX_STICK_DEADZONE));
+		break;
+	case GPAD_OPT_DEADZONE_TRIG:
+		Cvar_SetValueQuick (&joy_deadzone_trigger, CLAMP (MIN_TRIGGER_DEADZONE, joy_deadzone_trigger.value + dir * 0.05f, MAX_TRIGGER_DEADZONE));
+		break;
+	case GPAD_OPT_GYROMODE:
 		Cvar_SetValueQuick (&gyro_mode, (int)(q_max (gyro_mode.value, 0.f) + 5 + dir) % 5);
 		break;
-	case GYRO_OPT_TURNINGAXIS:
-		Cbuf_AddText ("toggle gyro_turning_axis\n");
+	case GPAD_OPT_GYROAXIS:
+		Cvar_SetValueQuick (&gyro_turning_axis, !gyro_turning_axis.value);
 		break;
-	case GYRO_OPT_SENSX:
+	case GPAD_OPT_GYROSENSX:
 		Cvar_SetValueQuick (&gyro_yawsensitivity, CLAMP (MIN_GYRO_SENS, gyro_yawsensitivity.value + dir * .1f, MAX_GYRO_SENS));
 		break;
-	case GYRO_OPT_SENSY:
+	case GPAD_OPT_GYROSENSY:
 		Cvar_SetValueQuick (&gyro_pitchsensitivity, CLAMP (MIN_GYRO_SENS, gyro_pitchsensitivity.value + dir * .1f, MAX_GYRO_SENS));
 		break;
-	case GYRO_OPT_CALIBRATE:
-		GYRO_Menu_Calibration(-dir);
+	case GPAD_OPT_CALIBRATE:
+		GYRO_Menu_Calibration ();
 		break;
 
 	default:
@@ -3746,13 +3810,41 @@ qboolean M_SetSliderValue (int option, float f)
 	case OPT_FOVDISTORT:	// FOV distortion
 		Cvar_SetValue ("cl_gun_fovscale", 1.f - f);
 		return true;
-	case GYRO_OPT_SENSX:
-		f = LERP (MIN_GYRO_SENS, MAX_GYRO_SENS, f);
-		Cvar_SetValue ("gyro_yawsensitivity", f);
+	case GPAD_OPT_SENSX:
+		f = LERP (MIN_JOY_SENS, MAX_JOY_SENS, f);
+		Cvar_SetValueQuick (&joy_sensitivity_yaw, f);
 		return true;
-	case GYRO_OPT_SENSY:
+	case GPAD_OPT_SENSY:
+		f = LERP (MIN_JOY_SENS, MAX_JOY_SENS, f);
+		Cvar_SetValueQuick (&joy_sensitivity_pitch, f);
+		return true;
+	case GPAD_OPT_EXPONENT_LOOK:
+		f = LERP (MIN_JOY_EXPONENT, MAX_JOY_EXPONENT, f);
+		Cvar_SetValueQuick (&joy_exponent, f);
+		return true;
+	case GPAD_OPT_EXPONENT_MOVE:
+		f = LERP (MIN_JOY_EXPONENT, MAX_JOY_EXPONENT, f);
+		Cvar_SetValueQuick (&joy_exponent_move, f);
+		return true;
+	case GPAD_OPT_DEADZONE_LOOK:
+		f = LERP (MIN_STICK_DEADZONE, MAX_STICK_DEADZONE, f);
+		Cvar_SetValueQuick (&joy_deadzone_look, f);
+		return true;
+	case GPAD_OPT_DEADZONE_MOVE:
+		f = LERP (MIN_STICK_DEADZONE, MAX_STICK_DEADZONE, f);
+		Cvar_SetValueQuick (&joy_deadzone_move, f);
+		return true;
+	case GPAD_OPT_DEADZONE_TRIG:
+		f = LERP (MIN_TRIGGER_DEADZONE, MAX_TRIGGER_DEADZONE, f);
+		Cvar_SetValueQuick (&joy_deadzone_trigger, f);
+		return true;
+	case GPAD_OPT_GYROSENSX:
 		f = LERP (MIN_GYRO_SENS, MAX_GYRO_SENS, f);
-		Cvar_SetValue ("gyro_pitchsensitivity", f);
+		Cvar_SetValueQuick (&gyro_yawsensitivity, f);
+		return true;
+	case GPAD_OPT_GYROSENSY:
+		f = LERP (MIN_GYRO_SENS, MAX_GYRO_SENS, f);
+		Cvar_SetValueQuick (&gyro_pitchsensitivity, f);
 		return true;
 	default:
 		return false;
@@ -3814,8 +3906,9 @@ static void M_Options_DrawItem (int y, int item)
 	{
 	case OPT_VIDEO:
 	case OPT_CUSTOMIZE:
-	case OPT_GYRO:
+	case OPT_GAMEPAD:
 	case OPT_MODS:
+	case GPAD_OPT_CALIBRATE:
 		M_Print (x - 4, y, "...");
 		break;
 
@@ -4005,9 +4098,46 @@ static void M_Options_DrawItem (int y, int item)
 		break;
 
 	//
-	// Gyro Options
+	// Gamepad Options
 	//
-	case GYRO_OPT_MODE:
+	case GPAD_OPT_ENABLE:
+		M_DrawCheckbox (x, y, joy_enable.value);
+		break;
+	case GPAD_OPT_SENSX:
+		r = (joy_sensitivity_yaw.value - MIN_JOY_SENS) / (MAX_JOY_SENS - MIN_JOY_SENS);
+		M_DrawSlider (x, y, r);
+		break;
+	case GPAD_OPT_SENSY:
+		r = (joy_sensitivity_pitch.value - MIN_JOY_SENS) / (MAX_JOY_SENS - MIN_JOY_SENS);
+		M_DrawSlider (x, y, r);
+		break;
+	case GPAD_OPT_INVERT:
+		M_DrawCheckbox (x, y, joy_invert.value);
+		break;
+	case GPAD_OPT_SWAP_MOVELOOK:
+		M_Print (x, y, joy_swapmovelook.value ? "Left" : "Right");
+		break;
+	case GPAD_OPT_EXPONENT_LOOK:
+		r = (joy_exponent.value - MIN_JOY_EXPONENT) / (MAX_JOY_EXPONENT - MIN_JOY_EXPONENT);
+		M_DrawSlider (x, y, r);
+		break;
+	case GPAD_OPT_EXPONENT_MOVE:
+		r = (joy_exponent_move.value - MIN_JOY_EXPONENT) / (MAX_JOY_EXPONENT - MIN_JOY_EXPONENT);
+		M_DrawSlider (x, y, r);
+		break;
+	case GPAD_OPT_DEADZONE_LOOK:
+		r = (joy_deadzone_look.value - MIN_STICK_DEADZONE) / (MAX_STICK_DEADZONE - MIN_STICK_DEADZONE);
+		M_DrawSlider (x, y, r);
+		break;
+	case GPAD_OPT_DEADZONE_MOVE:
+		r = (joy_deadzone_move.value - MIN_STICK_DEADZONE) / (MAX_STICK_DEADZONE - MIN_STICK_DEADZONE);
+		M_DrawSlider (x, y, r);
+		break;
+	case GPAD_OPT_DEADZONE_TRIG:
+		r = (joy_deadzone_trigger.value - MIN_TRIGGER_DEADZONE) / (MAX_TRIGGER_DEADZONE - MIN_TRIGGER_DEADZONE);
+		M_DrawSlider (x, y, r);
+		break;
+	case GPAD_OPT_GYROMODE:
 		switch ((int)gyro_mode.value)
 		{
 		case 1:		M_Print (x, y, "off, button enables"); break;
@@ -4017,20 +4147,16 @@ static void M_Options_DrawItem (int y, int item)
 		default:	M_Print (x, y, "off"); break;
 		}
 		break;
-
-	case GYRO_OPT_TURNINGAXIS:
+	case GPAD_OPT_GYROAXIS:
 		M_Print(x, y, gyro_turning_axis.value ? "roll (lean)" : "yaw (turn)");
 		break;
-
-	case GYRO_OPT_SENSX:
+	case GPAD_OPT_GYROSENSX:
 		r = (gyro_yawsensitivity.value - MIN_GYRO_SENS) / (MAX_GYRO_SENS - MIN_GYRO_SENS);
 		M_DrawSlider (x, y, r);
 		break;
-	case GYRO_OPT_SENSY:
+	case GPAD_OPT_GYROSENSY:
 		r = (gyro_pitchsensitivity.value - MIN_GYRO_SENS) / (MAX_GYRO_SENS - MIN_GYRO_SENS);
 		M_DrawSlider (x, y, r);
-		break;
-	case GYRO_OPT_CALIBRATE:
 		break;
 
 	default:
@@ -4084,18 +4210,6 @@ void M_Options_Draw (void)
 
 		y += 8;
 	}
-
-	if (m_state == m_gyro && M_Options_GetSelected () == GYRO_OPT_CALIBRATE)
-	{
-		x += 32;
-		y += 8;
-		M_PrintWhite (x, y, "Before calibrating");
-		y += 8;
-		M_PrintWhite (x, y, "place the controller");
-		y += 8;
-		M_PrintWhite (x, y, "on a flat, stable surface");
-	}
-
 }
 
 void M_Options_Key (int k)
@@ -4163,8 +4277,8 @@ void M_Options_Key (int k)
 		case OPT_VIDEO:
 			M_Menu_Video_f ();
 			break;
-		case OPT_GYRO:
-			M_Menu_Gyro_f ();
+		case OPT_GAMEPAD:
+			M_Menu_Gamepad_f ();
 			break;
 
 		case VID_OPT_TEST:
@@ -6273,7 +6387,7 @@ void M_Init (void)
 	Cmd_AddCommand ("menu_options", M_Menu_Options_f);
 	Cmd_AddCommand ("menu_keys", M_Menu_Keys_f);
 	Cmd_AddCommand ("menu_video", M_Menu_Video_f);
-	Cmd_AddCommand ("menu_gyro", M_Menu_Gyro_f);
+	Cmd_AddCommand ("menu_gamepad", M_Menu_Gamepad_f);
 	Cmd_AddCommand ("help", M_Menu_Help_f);
 	Cmd_AddCommand ("menu_quit", M_Menu_Quit_f);
 	Cmd_AddCommand ("menu_credits", M_Menu_Credits_f); // needed by the 2021 re-release
@@ -6382,7 +6496,7 @@ void M_Draw (void)
 
 	case m_options:
 	case m_video:
-	case m_gyro:
+	case m_gamepad:
 		M_Options_Draw ();
 		break;
 
@@ -6491,7 +6605,7 @@ void M_Keydown (int key)
 
 	case m_options:
 	case m_video:
-	case m_gyro:
+	case m_gamepad:
 		M_Options_Key (key);
 		return;
 
@@ -6600,7 +6714,7 @@ void M_Mousemove (int x, int y)
 
 	case m_options:
 	case m_video:
-	case m_gyro:
+	case m_gamepad:
 		M_Options_Mousemove (x, y);
 		return;
 
@@ -6660,7 +6774,7 @@ void M_Charinput (int key)
 		return;
 	case m_options:
 	case m_video:
-	case m_gyro:
+	case m_gamepad:
 		M_Options_Char (key);
 		return;
 	case m_keys:
@@ -6688,7 +6802,7 @@ qboolean M_TextEntry (void)
 		return M_Mods_TextEntry ();
 	case m_options:
 	case m_video:
-	case m_gyro:
+	case m_gamepad:
 		return M_Options_TextEntry ();
 	case m_keys:
 		return M_Keys_TextEntry ();
