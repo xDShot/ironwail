@@ -76,8 +76,6 @@ extern char crosshair_char;
 
 extern qboolean quake64;
 
-extern void StartCalibration(void);
-
 enum m_state_e m_state;
 extern qboolean	keydown[256];
 int m_mousex, m_mousey;
@@ -3074,54 +3072,83 @@ void M_Menu_Video_f (void)
 //=============================================================================
 /* CALIBRATION SCREEN */
 
-qboolean calibrationComplete;
-double calibrationCompleteTime;
+static enum
+{
+	CALIBRATION_INTRO_TEXT,
+	CALIBRATION_IN_ROGRESS,
+	CALIBRATION_FINISHED,
+} calibration_state;
+
+static double calibration_finished_delay;
 
 void M_Menu_Calibration_f (void)
 {
 	IN_DeactivateForMenu();
 	m_state = m_calibration;
-	calibrationComplete = false;
-	Con_Printf("Calibrating, please wait...\n");
-	StartCalibration();
+	calibration_state = CALIBRATION_INTRO_TEXT;
+	calibration_finished_delay = 1.0;
 }
 
 void M_Calibration_Draw (void)
 {
-	int x;
-	x = (320-27*8)/2;
-	M_DrawTextBox (x, 72, 27, 1);
+	int y = 72;
 
-	if (! calibrationComplete)
+	switch (calibration_state)
 	{
-		x += 16;
-		M_Print (x, 80, "Calibrating, please wait...");
-	}
-	else
-	{
-		x += 32;
-		M_Print (x, 80, "Calibration complete!");
-		if ((realtime - calibrationCompleteTime) > 2.0)
-			m_state = m_gamepad;
+	case CALIBRATION_INTRO_TEXT:
+		M_PrintAligned (160, y - 8,	ALIGN_CENTER, "Before calibration,");
+		M_PrintAligned (160, y,		ALIGN_CENTER, "place the controller");
+		M_PrintAligned (160, y + 8, ALIGN_CENTER, "on a flat, stable surface");
+		y += 24;
+		M_DrawTextBox (160 - 5*8, y, 8, 1);
+		M_DrawArrowCursor (160 - 6*8, y + 8);
+		M_PrintAligned (160, y + 8, ALIGN_CENTER, "Continue");
+		break;
+
+	case CALIBRATION_IN_ROGRESS:
+		M_PrintAligned (160, y, ALIGN_CENTER, "Calibrating, please wait...");
+		if (!IN_IsCalibratingGyro ())
+			calibration_state = CALIBRATION_FINISHED;
+		break;
+
+	case CALIBRATION_FINISHED:
+		M_PrintAligned (160, y, ALIGN_CENTER, "Calibration complete!");
+		calibration_finished_delay -= host_rawframetime;
+		if (calibration_finished_delay < 0.0)
+			M_Menu_Gamepad_f ();
+		break;
+
+	default:
+		break;
 	}
 }
 
 void M_Calibration_Key (int key)
 {
-}
+	if (calibration_state != CALIBRATION_INTRO_TEXT)
+		return;
 
-/*
-================
-CalibrationFinishedCallback
+	switch (key)
+	{
+	case K_ENTER:
+	case K_KP_ENTER:
+	case K_ABUTTON:
+	case K_MOUSE1:
+		calibration_state = CALIBRATION_IN_ROGRESS;
+		M_ThrottledSound ("misc/menu2.wav");
+		IN_StartGyroCalibration ();
+		break;
 
-called from in_sdl once calibration is finished
-================
-*/
-void CalibrationFinishedCallback(void)
-{
-	Con_Printf("Calibration finished\n");
-	calibrationComplete = true;
-	calibrationCompleteTime = realtime;
+	case K_ESCAPE:
+	case K_BBUTTON:
+	case K_MOUSE4:
+	case K_MOUSE2:
+		M_Menu_Gamepad_f ();
+		break;
+
+	default:
+		break;
+	}
 }
 
 //=============================================================================
@@ -3137,18 +3164,6 @@ void CalibrationFinishedCallback(void)
 #define MAX_TRIGGER_DEADZONE	0.75f
 #define MIN_GYRO_SENS			0.1f
 #define MAX_GYRO_SENS			8.f
-
-/*
-================
-GYRO_Menu_Calibration
-
-starts gyro calibration
-================
-*/
-static void GYRO_Menu_Calibration (void)
-{
-	M_Menu_Calibration_f();
-}
 
 /*
 ================
@@ -3720,7 +3735,7 @@ void M_AdjustSliders (int dir)
 		Cvar_SetValueQuick (&gyro_pitchsensitivity, CLAMP (MIN_GYRO_SENS, gyro_pitchsensitivity.value + dir * .1f, MAX_GYRO_SENS));
 		break;
 	case GPAD_OPT_CALIBRATE:
-		GYRO_Menu_Calibration ();
+		M_Menu_Calibration_f ();
 		break;
 
 	default:

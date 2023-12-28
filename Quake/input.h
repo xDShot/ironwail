@@ -34,6 +34,9 @@ void IN_Commands (void);
 // mouse moved by dx and dy pixels
 void IN_MouseMotion(int dx, int dy);
 
+void IN_StartGyroCalibration (void);
+qboolean IN_IsCalibratingGyro (void);
+
 
 void IN_SendKeyEvents (void);
 // used as a callback for Sys_SendKeyEvents() by some drivers

@@ -99,8 +99,6 @@ static float gyro_accum[3];
 static unsigned int num_samples;
 static unsigned int updates_countdown = 0;
 
-extern void CalibrationFinishedCallback(void);
-
 static qboolean gyro_active = false;
 
 static int SDLCALL IN_FilterMouseEvents (const SDL_Event *event)
@@ -1058,14 +1056,43 @@ static void IN_DebugKeyEvent(SDL_Event *event)
 		Sys_DoubleTime());
 }
 
-void StartCalibration(void)
+void IN_StartGyroCalibration (void)
 {
+	Con_Printf ("Calibrating, please wait...\n");
+
 	gyro_accum[0] = 0.0;
 	gyro_accum[1] = 0.0;
 	gyro_accum[2] = 0.0;
 
 	num_samples = 0;
 	updates_countdown = 300;
+}
+
+static void IN_UpdateGyroCalibration (void)
+{
+	if (!updates_countdown)
+		return;
+
+	updates_countdown--;
+	if (!updates_countdown)
+	{
+		const float inverseSamples = 1.f / num_samples;
+		Cvar_SetValue("gyro_calibration_x", gyro_accum[0] * inverseSamples);
+		Cvar_SetValue("gyro_calibration_y", gyro_accum[1] * inverseSamples);
+		Cvar_SetValue("gyro_calibration_z", gyro_accum[2] * inverseSamples);
+
+		Con_Printf("Calibration results:\n X=%f Y=%f Z=%f\n",
+			gyro_calibration_x.value,
+			gyro_calibration_y.value,
+			gyro_calibration_z.value);
+
+		Con_Printf("Calibration finished\n");
+	}
+}
+
+qboolean IN_IsCalibratingGyro (void)
+{
+	return updates_countdown != 0;
 }
 
 void IN_SendKeyEvents (void)
@@ -1245,22 +1272,6 @@ void IN_SendKeyEvents (void)
 		}
 	}
 
-	if (updates_countdown)
-	{
-		updates_countdown--;
-		if (!updates_countdown)
-		{
-			const float inverseSamples = 1.f / num_samples;
-			Cvar_SetValue("gyro_calibration_x", gyro_accum[0] * inverseSamples);
-			Cvar_SetValue("gyro_calibration_y", gyro_accum[1] * inverseSamples);
-			Cvar_SetValue("gyro_calibration_z", gyro_accum[2] * inverseSamples);
-
-			Con_Printf("Calibration results:\n X=%f Y=%f Z=%f\n",
-					   gyro_calibration_x.value,
-					   gyro_calibration_y.value,
-					   gyro_calibration_z.value);
-			CalibrationFinishedCallback();
-		}
-	}
+	IN_UpdateGyroCalibration ();
 }
 
