@@ -75,6 +75,8 @@ cvar_t gyro_calibration_x = {"gyro_calibration_x", "0", CVAR_ARCHIVE};
 cvar_t gyro_calibration_y = {"gyro_calibration_y", "0", CVAR_ARCHIVE};
 cvar_t gyro_calibration_z = {"gyro_calibration_z", "0", CVAR_ARCHIVE};
 
+cvar_t gyro_noise_thresh = {"gyro_noise_thresh", "1.5", CVAR_ARCHIVE};
+
 static SDL_JoystickID joy_active_instaceid = -1;
 static SDL_GameController *joy_active_controller = NULL;
 
@@ -447,6 +449,7 @@ void IN_Init (void)
 	Cvar_RegisterVariable(&gyro_calibration_x);
 	Cvar_RegisterVariable(&gyro_calibration_y);
 	Cvar_RegisterVariable(&gyro_calibration_z);
+	Cvar_RegisterVariable(&gyro_noise_thresh);
 
 	Cmd_AddCommand ("+gyroaction", IN_GyroActionDown);
 	Cmd_AddCommand ("-gyroaction", IN_GyroActionUp);
@@ -1103,6 +1106,18 @@ qboolean IN_IsCalibratingGyro (void)
 	return updates_countdown != 0;
 }
 
+static float IN_FilterGyroSample (float prev, float cur)
+{
+	float thresh = DEG2RAD (gyro_noise_thresh.value);
+	float d = fabs (cur - prev);
+	if (d < thresh)
+	{
+		d /= thresh;
+		cur = LERP (prev, cur, 0.01f + 0.99f * d * d);
+	}
+	return cur;
+}
+
 void IN_SendKeyEvents (void)
 {
 	SDL_Event event;
@@ -1211,15 +1226,17 @@ void IN_SendKeyEvents (void)
 			}
 			if (gyro_active && gyro_mode.value)
 			{
+				float prev_yaw = gyro_yaw;
+				float prev_pitch = gyro_pitch;
+
 				if (!gyro_turning_axis.value)
-				{
 					gyro_yaw = event.csensor.data[1] - gyro_calibration_y.value; // yaw
-				}
 				else
-				{
 					gyro_yaw = -(event.csensor.data[2] - gyro_calibration_z.value); // roll
-				}
 				gyro_pitch = event.csensor.data[0] - gyro_calibration_x.value;
+
+				gyro_yaw = IN_FilterGyroSample (prev_yaw, gyro_yaw);
+				gyro_pitch = IN_FilterGyroSample (prev_pitch, gyro_pitch);
 			}
 			else
 			{

@@ -71,6 +71,7 @@ extern cvar_t gyro_mode;
 extern cvar_t gyro_turning_axis;
 extern cvar_t gyro_pitchsensitivity;
 extern cvar_t gyro_yawsensitivity;
+extern cvar_t gyro_noise_thresh;
 
 extern char crosshair_char;
 
@@ -3164,6 +3165,8 @@ void M_Calibration_Key (int key)
 #define MAX_TRIGGER_DEADZONE	0.75f
 #define MIN_GYRO_SENS			0.1f
 #define MAX_GYRO_SENS			8.f
+#define MIN_GYRO_NOISE_THRESH	0.f
+#define MAX_GYRO_NOISE_THRESH	5.f
 
 /*
 ================
@@ -3267,6 +3270,7 @@ void M_Menu_Gamepad_f (void)
 	def(GPAD_OPT_GYROAXIS,		"Gyro Axis")		\
 	def(GPAD_OPT_GYROSENSX,		"Gyro Yaw Speed")	\
 	def(GPAD_OPT_GYROSENSY,		"Gyro Pitch Speed")	\
+	def(GPAD_OPT_GYRONOISE,		"Gyro Noise Thresh")\
 	def(GPAD_OPT_CALIBRATE,		"Calibrate")		\
 ////////////////////////////////////////////////////
 
@@ -3761,6 +3765,9 @@ void M_AdjustSliders (int dir)
 	case GPAD_OPT_GYROSENSY:
 		Cvar_SetValueQuick (&gyro_pitchsensitivity, CLAMP (MIN_GYRO_SENS, gyro_pitchsensitivity.value + dir * .1f, MAX_GYRO_SENS));
 		break;
+	case GPAD_OPT_GYRONOISE:
+		Cvar_SetValueQuick (&gyro_noise_thresh, CLAMP (MIN_GYRO_NOISE_THRESH, gyro_noise_thresh.value + dir * .5f, MAX_GYRO_NOISE_THRESH));
+		break;
 	case GPAD_OPT_CALIBRATE:
 		M_Menu_Calibration_f ();
 		break;
@@ -3887,6 +3894,10 @@ qboolean M_SetSliderValue (int option, float f)
 	case GPAD_OPT_GYROSENSY:
 		f = LERP (MIN_GYRO_SENS, MAX_GYRO_SENS, f);
 		Cvar_SetValueQuick (&gyro_pitchsensitivity, f);
+		return true;
+	case GPAD_OPT_GYRONOISE:
+		f = LERP (MIN_GYRO_NOISE_THRESH, MAX_GYRO_NOISE_THRESH, f);
+		Cvar_SetValueQuick (&gyro_noise_thresh, f);
 		return true;
 	default:
 		return false;
@@ -4201,6 +4212,10 @@ static void M_Options_DrawItem (int y, int item)
 		break;
 	case GPAD_OPT_GYROSENSY:
 		r = (gyro_pitchsensitivity.value - MIN_GYRO_SENS) / (MAX_GYRO_SENS - MIN_GYRO_SENS);
+		M_DrawSlider (x, y, r);
+		break;
+	case GPAD_OPT_GYRONOISE:
+		r = (gyro_noise_thresh.value - MIN_GYRO_NOISE_THRESH) / (MAX_GYRO_NOISE_THRESH - MIN_GYRO_NOISE_THRESH);
 		M_DrawSlider (x, y, r);
 		break;
 
