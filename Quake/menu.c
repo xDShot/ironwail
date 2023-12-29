@@ -3373,8 +3373,18 @@ static int M_Options_GetSelected (void)
 	return optionsmenu.list.cursor + optionsmenu.first_item;
 }
 
+static qboolean M_Options_IsEnabled (int index)
+{
+	index += optionsmenu.first_item;
+	if (index > GPAD_OPTIONS_FIRST && index < GPAD_OPTIONS_FIRST + GPAD_OPTIONS_ITEMS && !joy_enable.value)
+		return false;
+	return true;
+}
+
 static qboolean M_Options_IsSelectable (int index)
 {
+	if (!M_Options_IsEnabled (index))
+		return false;
 	index += optionsmenu.first_item;
 	return
 		(unsigned int) index < countof (options_names) &&
@@ -4184,6 +4194,7 @@ static void M_Options_DrawItem (int y, int item)
 
 void M_Options_Draw (void)
 {
+	qboolean enabled, wasenabled;
 	int firstvis, numvis;
 	int i, x, y, cols;
 	qpic_t	*p;
@@ -4216,10 +4227,18 @@ void M_Options_Draw (void)
 			M_DrawEllipsisBar (x, y + optionsmenu.list.viewsize*8, cols);
 	}
 
+	wasenabled = true;
 	M_List_GetVisibleRange (&optionsmenu.list, &firstvis, &numvis);
 	while (numvis-- > 0)
 	{
 		i = firstvis++;
+		enabled = M_Options_IsEnabled (i);
+		if (enabled != wasenabled)
+		{
+			float val = enabled ? 1.f : 0.375f;
+			GL_SetCanvasColor (val, val, val, 1.f);
+			wasenabled = enabled;
+		}
 		M_Options_DrawItem (y, optionsmenu.first_item + i);
 
 		// cursor
@@ -4228,6 +4247,9 @@ void M_Options_Draw (void)
 
 		y += 8;
 	}
+
+	if (!wasenabled)
+		GL_SetCanvasColor (1.f, 1.f, 1.f, 1.f);
 }
 
 void M_Options_Key (int k)
