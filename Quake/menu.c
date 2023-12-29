@@ -3285,9 +3285,16 @@ enum
 	VIDEO_OPTIONS_ITEMS		= VIDEO_OPTIONS_LIST (COUNT_OPTION),
 	GPAD_OPTIONS_FIRST		= OPTIONS_ITEMS + VIDEO_OPTIONS_ITEMS,
 	GPAD_OPTIONS_ITEMS		= GPAD_OPTIONS_LIST (COUNT_OPTION),
-	GPAD_OPTIONS_GYROITEMS	= GPAD_OPTIONS_FIRST + GPAD_OPTIONS_ITEMS - GPAD_OPT_GYROMODE,
 	#undef COUNT_OPTION
+
+	GYRO_OPTIONS_FIRST		= GPAD_OPT_GYROMODE,
+	GYRO_OPTIONS_ITEMS		= GPAD_OPTIONS_FIRST + GPAD_OPTIONS_ITEMS - GYRO_OPTIONS_FIRST,
 };
+
+static qboolean M_Options_IsGyroId (int id)
+{
+	return (unsigned int)(id - GYRO_OPTIONS_FIRST) < GYRO_OPTIONS_ITEMS;
+}
 
 static const char *const options_names[] =
 {
@@ -3378,6 +3385,8 @@ static qboolean M_Options_IsEnabled (int index)
 	index += optionsmenu.first_item;
 	if (index > GPAD_OPTIONS_FIRST && index < GPAD_OPTIONS_FIRST + GPAD_OPTIONS_ITEMS && !joy_enable.value)
 		return false;
+	if (M_Options_IsGyroId (index) && !IN_HasGyro ())
+		return false;
 	return true;
 }
 
@@ -3437,7 +3446,7 @@ void M_Options_Init (enum m_state_e state)
 		optionsmenu.first_item = GPAD_OPTIONS_FIRST;
 		optionsmenu.list.numitems = GPAD_OPTIONS_ITEMS;
 		if (!IN_HasGyro ())
-			optionsmenu.list.numitems -= GPAD_OPTIONS_GYROITEMS;
+			optionsmenu.list.numitems -= GYRO_OPTIONS_ITEMS - 1; // remove all but the first gyro item
 		optionsmenu.last_cursor = &optionsmenu.gamepad_cursor;
 		optionsmenu.subtitle = "Gamepad Options";
 	}
@@ -4166,14 +4175,17 @@ static void M_Options_DrawItem (int y, int item)
 		M_DrawSlider (x, y, r);
 		break;
 	case GPAD_OPT_GYROMODE:
-		switch ((int)gyro_mode.value)
-		{
-		case 1:		M_Print (x, y, "off, button enables"); break;
-		case 2:		M_Print (x, y, "on, button disables"); break;
-		case 3:		M_Print (x, y, "always on"); break;
-		case 4:		M_Print (x, y, "on, button inverts direction"); break;
-		default:	M_Print (x, y, "off"); break;
-		}
+		if (!IN_HasGyro ())
+			M_Print (x, y, "Not supported");
+		else
+			switch ((int)gyro_mode.value)
+			{
+			case 1:		M_Print (x, y, "off, button enables"); break;
+			case 2:		M_Print (x, y, "on, button disables"); break;
+			case 3:		M_Print (x, y, "always on"); break;
+			case 4:		M_Print (x, y, "on, button inverts direction"); break;
+			default:	M_Print (x, y, "off"); break;
+			}
 		break;
 	case GPAD_OPT_GYROAXIS:
 		M_Print(x, y, gyro_turning_axis.value ? "roll (lean)" : "yaw (turn)");
