@@ -3382,7 +3382,11 @@ static int M_Options_GetSelected (void)
 
 static qboolean M_Options_IsEnabled (int index)
 {
+	if ((unsigned int) index >= (unsigned int)optionsmenu.list.numitems)
+		return false;
 	index += optionsmenu.first_item;
+	if ((unsigned int) index >= countof (options_names))
+		return false;
 	if (index > GPAD_OPTIONS_FIRST && index < GPAD_OPTIONS_FIRST + GPAD_OPTIONS_ITEMS && !joy_enable.value)
 		return false;
 	if (M_Options_IsGyroId (index) && !IN_HasGyro ())
@@ -3395,10 +3399,7 @@ static qboolean M_Options_IsSelectable (int index)
 	if (!M_Options_IsEnabled (index))
 		return false;
 	index += optionsmenu.first_item;
-	return
-		(unsigned int) index < countof (options_names) &&
-		options_names[index][0] != '\0'
-	;
+	return options_names[index][0] != '\0';
 }
 
 static qboolean M_Options_Match (int index)
@@ -3460,6 +3461,10 @@ void M_Options_Init (enum m_state_e state)
 	optionsmenu.list.search.match_fn = M_Options_Match;
 
 	M_List_ClearSearch (&optionsmenu.list);
+
+	// If the cursor is on an inactive item, move it to the next active one
+	if (!M_Options_IsSelectable (optionsmenu.list.cursor))
+		M_List_SelectNextActive (&optionsmenu.list, optionsmenu.list.cursor, 1, true);
 
 	M_Options_UpdateLayout ();
 }
