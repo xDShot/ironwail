@@ -3285,6 +3285,7 @@ enum
 	VIDEO_OPTIONS_ITEMS		= VIDEO_OPTIONS_LIST (COUNT_OPTION),
 	GPAD_OPTIONS_FIRST		= OPTIONS_ITEMS + VIDEO_OPTIONS_ITEMS,
 	GPAD_OPTIONS_ITEMS		= GPAD_OPTIONS_LIST (COUNT_OPTION),
+	GPAD_OPTIONS_GYROITEMS	= GPAD_OPTIONS_FIRST + GPAD_OPTIONS_ITEMS - GPAD_OPT_GYROMODE,
 	#undef COUNT_OPTION
 };
 
@@ -3425,6 +3426,8 @@ void M_Options_Init (enum m_state_e state)
 	{
 		optionsmenu.first_item = GPAD_OPTIONS_FIRST;
 		optionsmenu.list.numitems = GPAD_OPTIONS_ITEMS;
+		if (!IN_HasGyro ())
+			optionsmenu.list.numitems -= GPAD_OPTIONS_GYROITEMS;
 		optionsmenu.last_cursor = &optionsmenu.gamepad_cursor;
 		optionsmenu.subtitle = "Gamepad Options";
 	}

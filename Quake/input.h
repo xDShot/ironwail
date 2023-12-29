@@ -34,6 +34,8 @@ void IN_Commands (void);
 // mouse moved by dx and dy pixels
 void IN_MouseMotion(int dx, int dy);
 
+// controller gyro
+qboolean IN_HasGyro (void);
 void IN_StartGyroCalibration (void);
 qboolean IN_IsCalibratingGyro (void);
 

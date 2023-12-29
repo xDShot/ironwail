@@ -99,6 +99,7 @@ static float gyro_accum[3];
 static unsigned int num_samples;
 static unsigned int updates_countdown = 0;
 
+static qboolean gyro_present = false;
 static qboolean gyro_active = false;
 
 static int SDLCALL IN_FilterMouseEvents (const SDL_Event *event)
@@ -326,6 +327,7 @@ void IN_StartupJoystick (void)
 				if (SDL_GameControllerHasSensor(joy_active_controller, SDL_SENSOR_GYRO)
 						&& !SDL_GameControllerSetSensorEnabled(joy_active_controller, SDL_SENSOR_GYRO, SDL_TRUE))
 				{
+					gyro_present = true;
 #if SDL_VERSION_ATLEAST(2, 0, 16)
 					Con_Printf("Gyro sensor enabled at %.2f Hz\n", SDL_GameControllerGetSensorDataRate(joy_active_controller, SDL_SENSOR_GYRO));
 #else
@@ -334,6 +336,7 @@ void IN_StartupJoystick (void)
 				}
 				else
 				{
+					gyro_present = false;
 					Con_Printf("Gyro sensor not found\n");
 				}
 				break;
@@ -1088,6 +1091,11 @@ static void IN_UpdateGyroCalibration (void)
 
 		Con_Printf("Calibration finished\n");
 	}
+}
+
+qboolean IN_HasGyro (void)
+{
+	return gyro_present;
 }
 
 qboolean IN_IsCalibratingGyro (void)
