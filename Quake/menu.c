@@ -200,6 +200,9 @@ void M_Options_Init (enum m_state_e state);
 #define SEARCH_ERROR_STATUS_TIMEOUT		0.25
 #define SEARCH_BACKSPACE_COOLDOWN		0.75
 
+// Don't show the gamepad toggle by default
+static qboolean m_gamepad_allowdisable = false;
+
 static void M_ThrottledSound (const char *sound)
 {
 	if (strcmp (m_lastsound, sound) == 0 && realtime - m_lastsoundtime < ui_sound_throttle.value)
@@ -3452,6 +3455,13 @@ void M_Options_Init (enum m_state_e state)
 		optionsmenu.list.numitems = GPAD_OPTIONS_ITEMS;
 		if (!IN_HasGyro ())
 			optionsmenu.list.numitems -= GYRO_OPTIONS_ITEMS - 1; // remove all but the first gyro item
+		if (!m_gamepad_allowdisable)
+		{
+			// Hide gamepad toggle option and a potential separator after it
+			int skip = 1 + !options_names[GPAD_OPTIONS_FIRST + 1][0];
+			optionsmenu.first_item += skip;
+			optionsmenu.list.numitems -= skip;
+		}
 		optionsmenu.last_cursor = &optionsmenu.gamepad_cursor;
 		optionsmenu.subtitle = "Gamepad Options";
 	}
@@ -4350,6 +4360,11 @@ void M_Options_Key (int k)
 			M_Menu_Video_f ();
 			break;
 		case OPT_GAMEPAD:
+			// Only allow disabling the gamepad if we've entered the menu at least once using the keyboard or mouse.
+			// We do this to avoid getting into an awkward state on devices where the gamepad is the primary input method,
+			// such as the Steam Deck.
+			if (k != K_ABUTTON)
+				m_gamepad_allowdisable = true;
 			M_Menu_Gamepad_f ();
 			break;
 
