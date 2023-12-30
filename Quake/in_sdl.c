@@ -362,6 +362,11 @@ void IN_ShutdownJoystick (void)
 	SDL_QuitSubSystem(SDL_INIT_GAMECONTROLLER);
 }
 
+qboolean IN_HasGamepad (void)
+{
+	return joy_active_controller != NULL;
+}
+
 void IN_GyroActionDown (void)
 {
 	switch ((int)gyro_mode.value)

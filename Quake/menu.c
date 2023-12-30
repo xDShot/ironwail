@@ -4553,7 +4553,12 @@ void M_Keys_Draw (void)
 	if (bind_grab)
 		M_Print (12, y + 32, "Press a key or button for this action");
 	else
-		M_Print (18, y + 32, "Enter to change, backspace to clear");
+	{
+		const char *msg = IN_HasGamepad () ?
+			"Enter/A to change, backspace/Y to clear" :
+			"Enter to change, backspace to clear";
+		M_PrintAligned (160, y + 32, ALIGN_CENTER, msg);
+	}
 
 	y += KEYLIST_OFS;
 
@@ -4678,6 +4683,7 @@ void M_Keys_Key (int k)
 			break;
 		/* fall-through */
 	case K_DEL:
+	case K_YBUTTON:
 		M_ThrottledSound ("misc/menu2.wav");
 		M_UnbindCommand (bindnames[keysmenu.list.cursor][0]);
 		break;

@@ -39,6 +39,7 @@ qboolean IN_HasGyro (void);
 void IN_StartGyroCalibration (void);
 qboolean IN_IsCalibratingGyro (void);
 
+qboolean IN_HasGamepad (void);
 
 void IN_SendKeyEvents (void);
 // used as a callback for Sys_SendKeyEvents() by some drivers
