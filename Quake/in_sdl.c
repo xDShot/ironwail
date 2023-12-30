@@ -597,6 +597,8 @@ IN_KeyForControllerButton
 */
 static int IN_KeyForControllerButton(SDL_GameControllerButton button)
 {
+	qboolean remap_dpad = (key_dest != key_game && !M_KeyBinding ());
+
 	switch (button)
 	{
 		case SDL_CONTROLLER_BUTTON_A: return K_ABUTTON;
@@ -609,10 +611,10 @@ static int IN_KeyForControllerButton(SDL_GameControllerButton button)
 		case SDL_CONTROLLER_BUTTON_RIGHTSTICK: return K_RTHUMB;
 		case SDL_CONTROLLER_BUTTON_LEFTSHOULDER: return K_LSHOULDER;
 		case SDL_CONTROLLER_BUTTON_RIGHTSHOULDER: return K_RSHOULDER;
-		case SDL_CONTROLLER_BUTTON_DPAD_UP: return K_UPARROW;
-		case SDL_CONTROLLER_BUTTON_DPAD_DOWN: return K_DOWNARROW;
-		case SDL_CONTROLLER_BUTTON_DPAD_LEFT: return K_LEFTARROW;
-		case SDL_CONTROLLER_BUTTON_DPAD_RIGHT: return K_RIGHTARROW;
+		case SDL_CONTROLLER_BUTTON_DPAD_UP: return remap_dpad ? K_UPARROW : K_DPAD_UP;
+		case SDL_CONTROLLER_BUTTON_DPAD_DOWN: return remap_dpad ? K_DOWNARROW : K_DPAD_DOWN;
+		case SDL_CONTROLLER_BUTTON_DPAD_LEFT: return remap_dpad ? K_LEFTARROW : K_DPAD_LEFT;
+		case SDL_CONTROLLER_BUTTON_DPAD_RIGHT: return remap_dpad ? K_RIGHTARROW : K_DPAD_RIGHT;
 		case SDL_CONTROLLER_BUTTON_MISC1: return K_MISC1;
 		case SDL_CONTROLLER_BUTTON_PADDLE1: return K_PADDLE1;
 		case SDL_CONTROLLER_BUTTON_PADDLE2: return K_PADDLE2;
