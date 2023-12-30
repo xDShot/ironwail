@@ -77,7 +77,7 @@ cvar_t gyro_calibration_z = {"gyro_calibration_z", "0", CVAR_ARCHIVE};
 
 cvar_t gyro_noise_thresh = {"gyro_noise_thresh", "1.5", CVAR_ARCHIVE};
 
-static SDL_JoystickID joy_active_instaceid = -1;
+static SDL_JoystickID joy_active_instanceid = -1;
 static SDL_GameController *joy_active_controller = NULL;
 
 static qboolean	no_mouse = false;
@@ -316,7 +316,7 @@ void IN_StartupJoystick (void)
 			{
 				Con_Printf("detected controller: %s\n", controllername != NULL ? controllername : "NULL");
 				
-				joy_active_instaceid = SDL_JoystickInstanceID(SDL_GameControllerGetJoystick(gamecontroller));
+				joy_active_instanceid = SDL_JoystickInstanceID(SDL_GameControllerGetJoystick(gamecontroller));
 				joy_active_controller = gamecontroller;
 
 #if SDL_VERSION_ATLEAST(2, 0, 14)
@@ -1260,7 +1260,7 @@ void IN_SendKeyEvents (void)
 #endif // SDL_VERSION_ATLEAST(2, 0, 14)
 
 		case SDL_CONTROLLERDEVICEADDED:
-			if (joy_active_instaceid == -1)
+			if (joy_active_instanceid == -1)
 			{
 				joy_active_controller = SDL_GameControllerOpen(event.cdevice.which);
 				if (joy_active_controller == NULL)
@@ -1269,7 +1269,7 @@ void IN_SendKeyEvents (void)
 				{
 					SDL_Joystick *joy;
 					joy = SDL_GameControllerGetJoystick(joy_active_controller);
-					joy_active_instaceid = SDL_JoystickInstanceID(joy);
+					joy_active_instanceid = SDL_JoystickInstanceID(joy);
 					if (SDL_GameControllerHasLED(joy_active_controller))
 						{
 							// orange LED, seemed fitting for Quake
@@ -1281,11 +1281,11 @@ void IN_SendKeyEvents (void)
 				Con_DPrintf("Ignoring SDL_CONTROLLERDEVICEADDED\n");
 			break;
 		case SDL_CONTROLLERDEVICEREMOVED:
-			if (joy_active_instaceid != -1 && event.cdevice.which == joy_active_instaceid)
+			if (joy_active_instanceid != -1 && event.cdevice.which == joy_active_instanceid)
 			{
 				SDL_GameControllerClose(joy_active_controller);
 				joy_active_controller = NULL;
-				joy_active_instaceid = -1;
+				joy_active_instanceid = -1;
 			}
 			else
 				Con_DPrintf("Ignoring SDL_CONTROLLERDEVICEREMOVED\n");
