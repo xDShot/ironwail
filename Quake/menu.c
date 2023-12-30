@@ -4535,7 +4535,7 @@ extern qpic_t	*pic_up, *pic_down;
 void M_Keys_Draw (void)
 {
 	int		firstvis, numvis;
-	int		i, x, y, cols;
+	int		i, j, x, y, cols;
 	int		keys[3];
 	const char	*name;
 	qpic_t	*p;
@@ -4595,28 +4595,20 @@ void M_Keys_Draw (void)
 			if (i == keysmenu.list.cursor && bind_grab && keys[2] != -1)
 				keys[0] = -1;
 
-			if (keys[0] == -1)
+			for (j = 0, x = 136; j < 3 && keys[j] != -1; j++)
 			{
-				print_fn (136, y, "???");
-			}
-			else
-			{
-				name = Key_KeynumToString (keys[0]);
-				print_fn (136, y, name);
-				x = strlen(name) * 8;
-				if (keys[1] != -1)
+				if (j)
 				{
-					name = Key_KeynumToString (keys[1]);
-					print_fn (136 + x + 8, y, "or");
-					print_fn (136 + x + 32, y, name);
-					x = x + 32 + strlen(name) * 8;
-					if (keys[2] != -1)
-					{
-						print_fn (136 + x + 8, y, "or");
-						print_fn (136 + x + 32, y, Key_KeynumToString (keys[2]));
-					}
+					print_fn (x + 8, y, "or");
+					x += 32;
 				}
+				name = Key_KeynumToString (keys[j]);
+				print_fn (x, y, name);
+				x += strlen (name) * 8;
 			}
+
+			if (j == 0)
+				print_fn (x, y, "???");
 		}
 
 		if (i == keysmenu.list.cursor)
