@@ -79,6 +79,7 @@ cvar_t gyro_noise_thresh = {"gyro_noise_thresh", "1.5", CVAR_ARCHIVE};
 
 static SDL_JoystickID joy_active_instanceid = -1;
 static SDL_GameController *joy_active_controller = NULL;
+static char joy_active_name[256];
 
 static qboolean	no_mouse = false;
 
@@ -280,6 +281,65 @@ void IN_DeactivateForMenu (void)
 	IN_Deactivate(modestate == MS_WINDOWED || ui_mouse.value);
 }
 
+static void IN_UseController (SDL_GameController *gamecontroller)
+{
+	const char *controllername;
+
+	if (gamecontroller == joy_active_controller)
+		return;
+
+	if (joy_active_controller)
+	{
+		SDL_GameControllerClose (joy_active_controller);
+
+		Con_Printf ("Controller removed: %s\n", joy_active_name);
+
+		joy_active_name[0] = '\0';
+		joy_active_controller = NULL;
+		joy_active_instanceid = -1;
+		gyro_present = false;
+		gyro_active = false;
+		gyro_yaw = gyro_pitch = 0.f;
+		gyro_dir = 1;
+	}
+
+	if (!gamecontroller)
+		return;
+
+	controllername = SDL_GameControllerName (gamecontroller);
+	if (!controllername)
+		controllername = "[Unknown controller]";
+	Con_Printf ("Using controller: %s (%x)\n", controllername);
+
+	joy_active_controller = gamecontroller;
+	joy_active_instanceid = SDL_JoystickInstanceID (SDL_GameControllerGetJoystick (gamecontroller));
+	// Save controller name so we can print it when unplugged (SDL_GameControllerName would return NULL)
+	q_strlcpy (joy_active_name, controllername, sizeof (joy_active_name));
+
+#if SDL_VERSION_ATLEAST(2, 0, 14)
+	if (SDL_GameControllerHasLED (joy_active_controller))
+	{
+		// orange LED, seemed fitting for Quake
+		SDL_GameControllerSetLED (joy_active_controller, 80, 20, 0);
+	}
+	if (SDL_GameControllerHasSensor (joy_active_controller, SDL_SENSOR_GYRO)
+		&& !SDL_GameControllerSetSensorEnabled (joy_active_controller, SDL_SENSOR_GYRO, SDL_TRUE))
+	{
+		gyro_present = true;
+		gyro_mode.callback (&gyro_mode);
+#if SDL_VERSION_ATLEAST(2, 0, 16)
+		Con_Printf ("Gyro sensor enabled at %g Hz\n", SDL_GameControllerGetSensorDataRate (joy_active_controller, SDL_SENSOR_GYRO));
+#else
+		Con_printf ("Gyro sensor enabled.\n")
+#endif // SDL_VERSION_ATLEAST(2, 0, 16)
+	}
+	else
+	{
+		Con_Printf ("Gyro sensor not found\n");
+	}
+#endif // SDL_VERSION_ATLEAST(2, 0, 14)
+}
+
 void IN_StartupJoystick (void)
 {
 	int i;
@@ -314,36 +374,8 @@ void IN_StartupJoystick (void)
 			gamecontroller = SDL_GameControllerOpen(i);
 			if (gamecontroller)
 			{
-				Con_Printf("detected controller: %s\n", controllername != NULL ? controllername : "NULL");
-				
-				joy_active_instanceid = SDL_JoystickInstanceID(SDL_GameControllerGetJoystick(gamecontroller));
-				joy_active_controller = gamecontroller;
-
-#if SDL_VERSION_ATLEAST(2, 0, 14)
-
-				if (SDL_GameControllerHasLED(joy_active_controller))
-					{
-						// orange LED, seemed fitting for Quake
-						SDL_GameControllerSetLED(joy_active_controller, 80, 20, 0);
-					}
-				if (SDL_GameControllerHasSensor(joy_active_controller, SDL_SENSOR_GYRO)
-						&& !SDL_GameControllerSetSensorEnabled(joy_active_controller, SDL_SENSOR_GYRO, SDL_TRUE))
-				{
-					gyro_present = true;
-#if SDL_VERSION_ATLEAST(2, 0, 16)
-					Con_Printf("Gyro sensor enabled at %.2f Hz\n", SDL_GameControllerGetSensorDataRate(joy_active_controller, SDL_SENSOR_GYRO));
-#else
-					Con_printf("Gyro sensor enabled.\n")
-#endif // SDL_VERSION_ATLEAST(2, 0, 16)
-				}
-				else
-				{
-					gyro_present = false;
-					Con_Printf("Gyro sensor not found\n");
-				}
+				IN_UseController(gamecontroller);
 				break;
-
-#endif // SDL_VERSION_ATLEAST(2, 0, 14)
 			}
 			else
 			{
@@ -462,11 +494,6 @@ void IN_Init (void)
 	IN_Activate();
 	IN_StartupJoystick();
 	Sys_ActivateKeyFilter(true);
-
-	if ((int)gyro_mode.value == 2)
-	{
-		gyro_active = true;
-	}
 }
 
 void IN_Shutdown (void)
@@ -1262,31 +1289,18 @@ void IN_SendKeyEvents (void)
 		case SDL_CONTROLLERDEVICEADDED:
 			if (joy_active_instanceid == -1)
 			{
-				joy_active_controller = SDL_GameControllerOpen(event.cdevice.which);
-				if (joy_active_controller == NULL)
+				SDL_GameController *gamecontroller = SDL_GameControllerOpen(event.cdevice.which);
+				if (gamecontroller == NULL)
 					Con_DPrintf("Couldn't open game controller\n");
 				else
-				{
-					SDL_Joystick *joy;
-					joy = SDL_GameControllerGetJoystick(joy_active_controller);
-					joy_active_instanceid = SDL_JoystickInstanceID(joy);
-					if (SDL_GameControllerHasLED(joy_active_controller))
-						{
-							// orange LED, seemed fitting for Quake
-							SDL_GameControllerSetLED(joy_active_controller, 80, 20, 0);
-						}
-				}
+					IN_UseController(gamecontroller);
 			}
 			else
 				Con_DPrintf("Ignoring SDL_CONTROLLERDEVICEADDED\n");
 			break;
 		case SDL_CONTROLLERDEVICEREMOVED:
 			if (joy_active_instanceid != -1 && event.cdevice.which == joy_active_instanceid)
-			{
-				SDL_GameControllerClose(joy_active_controller);
-				joy_active_controller = NULL;
-				joy_active_instanceid = -1;
-			}
+				IN_UseController(NULL);
 			else
 				Con_DPrintf("Ignoring SDL_CONTROLLERDEVICEREMOVED\n");
 			break;
