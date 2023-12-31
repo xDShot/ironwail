@@ -851,6 +851,9 @@ void IN_GyroMove(usercmd_t *cmd)
 		break;
 	}
 
+	if (gyro_yaw || gyro_pitch)
+		V_StopPitchDrift ();
+
 	cl.viewangles[YAW] += scale * gyro_yaw * gyro_yawsensitivity.value;
 	cl.viewangles[PITCH] -= scale * gyro_pitch * gyro_pitchsensitivity.value;
 
