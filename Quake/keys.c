@@ -1061,7 +1061,7 @@ void Key_EventWithKeycode (int key, qboolean down, int keycode)
 			if (key_dest == key_game && !con_forcedup)
 				return; // ignore autorepeats in game mode
 		}
-		else if (key >= 200 && !keybindings[key] && key_dest != key_menu)
+		else if (key >= 200 && !keybindings[key] && key_dest == key_game)
 		{
 			int optkey;
 			if (Key_GetKeysForCommand ("menu_options", &optkey, 1))
