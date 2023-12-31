@@ -65,7 +65,8 @@ cvar_t	joy_exponent_move = { "joy_exponent_move", "2", CVAR_ARCHIVE };
 cvar_t	joy_swapmovelook = { "joy_swapmovelook", "0", CVAR_ARCHIVE };
 cvar_t	joy_enable = { "joy_enable", "1", CVAR_ARCHIVE };
 
-cvar_t gyro_mode = {"gyro_mode", "0", CVAR_ARCHIVE};
+cvar_t gyro_enable = {"gyro_enable", "1", CVAR_ARCHIVE};
+cvar_t gyro_mode = {"gyro_mode", "0", CVAR_ARCHIVE}; // see gyromode_t
 cvar_t gyro_turning_axis = {"gyro_turning_axis", "0", CVAR_ARCHIVE};
 
 cvar_t gyro_yawsensitivity = {"gyro_yawsensitivity", "2.5", CVAR_ARCHIVE};
@@ -95,7 +96,6 @@ static const int buttonremap[] =
 /* total accumulated mouse movement since last frame */
 static int	total_dx, total_dy = 0;
 static float gyro_yaw, gyro_pitch = 0;
-static float gyro_dir = 1;
 
 // used for gyro calibration
 static float gyro_accum[3];
@@ -103,7 +103,7 @@ static unsigned int num_samples;
 static unsigned int updates_countdown = 0;
 
 static qboolean gyro_present = false;
-static qboolean gyro_active = false;
+static qboolean gyro_button_pressed = false;
 
 static int SDLCALL IN_FilterMouseEvents (const SDL_Event *event)
 {
@@ -298,9 +298,7 @@ static void IN_UseController (SDL_GameController *gamecontroller)
 		joy_active_controller = NULL;
 		joy_active_instanceid = -1;
 		gyro_present = false;
-		gyro_active = false;
 		gyro_yaw = gyro_pitch = 0.f;
-		gyro_dir = 1;
 	}
 
 	if (!gamecontroller)
@@ -326,7 +324,6 @@ static void IN_UseController (SDL_GameController *gamecontroller)
 		&& !SDL_GameControllerSetSensorEnabled (joy_active_controller, SDL_SENSOR_GYRO, SDL_TRUE))
 	{
 		gyro_present = true;
-		gyro_mode.callback (&gyro_mode);
 #if SDL_VERSION_ATLEAST(2, 0, 16)
 		Con_Printf ("Gyro sensor enabled at %g Hz\n", SDL_GameControllerGetSensorDataRate (joy_active_controller, SDL_SENSOR_GYRO));
 #else
@@ -401,46 +398,12 @@ qboolean IN_HasGamepad (void)
 
 void IN_GyroActionDown (void)
 {
-	switch ((int)gyro_mode.value)
-	{
-		case 1:
-			gyro_active = true;
-			return;
-		case 2:
-			gyro_active = false;
-			return;
-		case 4:
-			gyro_dir = -1;
-	}
-}
-void IN_GyroActionUp (void)
-{
-	switch ((int)gyro_mode.value)
-	{
-		case 1:
-			gyro_active = false;
-			return;
-		case 2:
-			gyro_active = true;
-			return;
-		case 4:
-			gyro_dir = 1;
-	}
+	gyro_button_pressed = true;
 }
 
-void IN_UpdateGyroActive(cvar_t *var)
+void IN_GyroActionUp (void)
 {
-	switch ((int)var->value)
-	{
-		case 0:
-		case 1:
-			gyro_active = false;
-			return;
-		case 2:
-		case 3:
-		case 4:
-			gyro_active = true;
-	}
+	gyro_button_pressed = false;
 }
 
 void IN_Init (void)
@@ -476,8 +439,8 @@ void IN_Init (void)
 	Cvar_RegisterVariable(&joy_swapmovelook);
 	Cvar_RegisterVariable(&joy_enable);
 
+	Cvar_RegisterVariable(&gyro_enable);
 	Cvar_RegisterVariable(&gyro_mode);
-	Cvar_SetCallback(&gyro_mode, IN_UpdateGyroActive);
 	Cvar_RegisterVariable(&gyro_turning_axis);
 
 	Cvar_RegisterVariable(&gyro_yawsensitivity);
@@ -857,7 +820,7 @@ void IN_JoyMove (usercmd_t *cmd)
 void IN_GyroMove(usercmd_t *cmd)
 {
 	float scale;
-	if (!joy_enable.value)
+	if (!joy_enable.value || !gyro_enable.value)
 		return;
 
 	if (!joy_active_controller)
@@ -869,7 +832,25 @@ void IN_GyroMove(usercmd_t *cmd)
 	if (CL_InCutscene ())
 		return;
 
-	scale = (180.f / M_PI) * gyro_dir * host_frametime;
+	scale = (180.f / M_PI) * host_frametime;
+	switch ((int)gyro_mode.value)
+	{
+	case GYRO_BUTTON_DISABLES:
+		if (gyro_button_pressed)
+			return;
+		break;
+	case GYRO_BUTTON_ENABLES:
+		if (!gyro_button_pressed)
+			return;
+		break;
+	case GYRO_BUTTON_INVERTS_DIR:
+		if (gyro_button_pressed)
+			scale = -scale;
+		break;
+	default:
+		break;
+	}
+
 	cl.viewangles[YAW] += scale * gyro_yaw * gyro_yawsensitivity.value;
 	cl.viewangles[PITCH] -= scale * gyro_pitch * gyro_pitchsensitivity.value;
 
@@ -1252,22 +1233,19 @@ void IN_SendKeyEvents (void)
 
 #if SDL_VERSION_ATLEAST(2, 0, 14)
 		case SDL_CONTROLLERSENSORUPDATE:
-			if (event.csensor.sensor != SDL_SENSOR_GYRO)
-			{
-				break;
-			}
-			if (updates_countdown)
-			{
-				gyro_accum[0] += event.csensor.data[0];
-				gyro_accum[1] += event.csensor.data[1];
-				gyro_accum[2] += event.csensor.data[2];
-				num_samples++;
-				break;
-			}
-			if (gyro_active && gyro_mode.value)
+			if (event.csensor.sensor == SDL_SENSOR_GYRO)
 			{
 				float prev_yaw = gyro_yaw;
 				float prev_pitch = gyro_pitch;
+
+				if (updates_countdown)
+				{
+					gyro_accum[0] += event.csensor.data[0];
+					gyro_accum[1] += event.csensor.data[1];
+					gyro_accum[2] += event.csensor.data[2];
+					num_samples++;
+					break;
+				}
 
 				if (!gyro_turning_axis.value)
 					gyro_yaw = event.csensor.data[1] - gyro_calibration_y.value; // yaw
@@ -1277,10 +1255,6 @@ void IN_SendKeyEvents (void)
 
 				gyro_yaw = IN_FilterGyroSample (prev_yaw, gyro_yaw);
 				gyro_pitch = IN_FilterGyroSample (prev_pitch, gyro_pitch);
-			}
-			else
-			{
-				gyro_yaw = gyro_pitch = 0;
 			}
 			break;
 

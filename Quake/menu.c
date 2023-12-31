@@ -67,6 +67,7 @@ extern cvar_t joy_exponent;
 extern cvar_t joy_exponent_move;
 extern cvar_t joy_swapmovelook;
 extern cvar_t joy_enable;
+extern cvar_t gyro_enable;
 extern cvar_t gyro_mode;
 extern cvar_t gyro_turning_axis;
 extern cvar_t gyro_pitchsensitivity;
@@ -3269,7 +3270,8 @@ void M_Menu_Gamepad_f (void)
 													\
 	def(GPAD_OPT_SPACE4,		"")					\
 													\
-	def(GPAD_OPT_GYROMODE,		"Gyro Mode")		\
+	def(GPAD_OPT_GYROENABLE,	"Gyro")				\
+	def(GPAD_OPT_GYROMODE,		"Gyro Button")		\
 	def(GPAD_OPT_GYROAXIS,		"Gyro Axis")		\
 	def(GPAD_OPT_GYROSENSX,		"Gyro Yaw Speed")	\
 	def(GPAD_OPT_GYROSENSY,		"Gyro Pitch Speed")	\
@@ -3294,7 +3296,7 @@ enum
 	GPAD_OPTIONS_ITEMS		= GPAD_OPTIONS_LIST (COUNT_OPTION),
 	#undef COUNT_OPTION
 
-	GYRO_OPTIONS_FIRST		= GPAD_OPT_GYROMODE,
+	GYRO_OPTIONS_FIRST		= GPAD_OPT_GYROENABLE,
 	GYRO_OPTIONS_ITEMS		= GPAD_OPTIONS_FIRST + GPAD_OPTIONS_ITEMS - GYRO_OPTIONS_FIRST,
 };
 
@@ -3396,8 +3398,13 @@ static qboolean M_Options_IsEnabled (int index)
 		return false;
 	if (index > GPAD_OPTIONS_FIRST && index < GPAD_OPTIONS_FIRST + GPAD_OPTIONS_ITEMS && !joy_enable.value)
 		return false;
-	if (M_Options_IsGyroId (index) && !IN_HasGyro ())
-		return false;
+	if (M_Options_IsGyroId (index))
+	{
+		if (!IN_HasGyro ())
+			return false;
+		if (!gyro_enable.value && index > GYRO_OPTIONS_FIRST)
+			return false;
+	}
 	return true;
 }
 
@@ -3763,8 +3770,11 @@ void M_AdjustSliders (int dir)
 	case GPAD_OPT_DEADZONE_TRIG:
 		Cvar_SetValueQuick (&joy_deadzone_trigger, CLAMP (MIN_TRIGGER_DEADZONE, joy_deadzone_trigger.value + dir * 0.05f, MAX_TRIGGER_DEADZONE));
 		break;
+	case GPAD_OPT_GYROENABLE:
+		Cvar_SetValueQuick (&gyro_enable, !gyro_enable.value);
+		break;
 	case GPAD_OPT_GYROMODE:
-		Cvar_SetValueQuick (&gyro_mode, (int)(q_max (gyro_mode.value, 0.f) + 5 + dir) % 5);
+		Cvar_SetValueQuick (&gyro_mode, (int)(q_max (gyro_mode.value, 0.f) + GYRO_MODE_COUNT + dir) % GYRO_MODE_COUNT);
 		break;
 	case GPAD_OPT_GYROAXIS:
 		Cvar_SetValueQuick (&gyro_turning_axis, !gyro_turning_axis.value);
@@ -4200,18 +4210,20 @@ static void M_Options_DrawItem (int y, int item)
 		r = (joy_deadzone_trigger.value - MIN_TRIGGER_DEADZONE) / (MAX_TRIGGER_DEADZONE - MIN_TRIGGER_DEADZONE);
 		M_DrawSlider (x, y, r);
 		break;
-	case GPAD_OPT_GYROMODE:
+	case GPAD_OPT_GYROENABLE:
 		if (!IN_HasGyro ())
-			M_Print (x, y, "Not supported");
+			M_Print (x, y, "Unavailable");
 		else
-			switch ((int)gyro_mode.value)
-			{
-			case 1:		M_Print (x, y, "off, button enables"); break;
-			case 2:		M_Print (x, y, "on, button disables"); break;
-			case 3:		M_Print (x, y, "always on"); break;
-			case 4:		M_Print (x, y, "on, button inverts direction"); break;
-			default:	M_Print (x, y, "off"); break;
-			}
+			M_DrawCheckbox (x, y, gyro_enable.value);
+		break;
+	case GPAD_OPT_GYROMODE:
+		switch ((int)gyro_mode.value)
+		{
+		case GYRO_BUTTON_ENABLES:		M_Print (x, y, "Enable gyro"); break;
+		case GYRO_BUTTON_DISABLES:		M_Print (x, y, "Disable gyro"); break;
+		case GYRO_BUTTON_INVERTS_DIR:	M_Print (x, y, "Invert dir"); break;
+		default:						M_Print (x, y, "Ignore"); break;
+		}
 		break;
 	case GPAD_OPT_GYROAXIS:
 		M_Print(x, y, gyro_turning_axis.value ? "roll (lean)" : "yaw (turn)");

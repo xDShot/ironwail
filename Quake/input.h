@@ -34,7 +34,19 @@ void IN_Commands (void);
 // mouse moved by dx and dy pixels
 void IN_MouseMotion(int dx, int dy);
 
+//
 // controller gyro
+//
+typedef enum gyromode_t
+{
+	GYRO_BUTTON_IGNORED,
+	GYRO_BUTTON_ENABLES,
+	GYRO_BUTTON_DISABLES,
+	GYRO_BUTTON_INVERTS_DIR,
+
+	GYRO_MODE_COUNT,
+} gyromode_t;
+
 qboolean IN_HasGyro (void);
 void IN_StartGyroCalibration (void);
 qboolean IN_IsCalibratingGyro (void);
