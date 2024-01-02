@@ -55,6 +55,7 @@ typedef struct particle_s
 	byte		color;
 // drivers never touch the following fields
 	byte		type;
+	float		spawn;
 	float		die;
 	vec3_t		vel;
 	float		ramp;

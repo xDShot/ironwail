@@ -1064,7 +1064,7 @@ void CL_ParseServerMessage (void)
 	int			cmd;
 	int			i;
 	const char		*str; //johnfitz
-	int			total, j, lastcmd; //johnfitz
+	int			lastcmd; //johnfitz
 
 //
 // if recording demos, copy the message out
@@ -1096,6 +1096,7 @@ void CL_ParseServerMessage (void)
 			if (*cl.stuffcmdbuf && net_message.cursize < 512)
 				CL_ParseStuffText("\n");	//there's a few mods that forget to write \ns, that then fuck up other things too. So make sure it gets flushed to the cbuf. the cursize check is to reduce backbuffer overflows that would give a false positive.
 
+			CL_FinishDemoFrame ();
 			return;		// end of message
 		}
 
@@ -1184,23 +1185,7 @@ void CL_ParseServerMessage (void)
 			i = MSG_ReadByte ();
 			if (i >= MAX_LIGHTSTYLES)
 				Sys_Error ("svc_lightstyle > MAX_LIGHTSTYLES");
-			q_strlcpy (cl_lightstyle[i].map, MSG_ReadString(), MAX_STYLESTRING);
-			cl_lightstyle[i].length = Q_strlen(cl_lightstyle[i].map);
-			//johnfitz -- save extra info
-			if (cl_lightstyle[i].length)
-			{
-				total = 0;
-				cl_lightstyle[i].peak = 'a';
-				for (j=0; j<cl_lightstyle[i].length; j++)
-				{
-					total += cl_lightstyle[i].map[j] - 'a';
-					cl_lightstyle[i].peak = q_max(cl_lightstyle[i].peak, cl_lightstyle[i].map[j]);
-				}
-				cl_lightstyle[i].average = total / cl_lightstyle[i].length + 'a';
-			}
-			else
-				cl_lightstyle[i].average = cl_lightstyle[i].peak = 'm';
-			//johnfitz
+			CL_SetLightstyle (i, MSG_ReadString ());
 			break;
 
 		case svc_sound:

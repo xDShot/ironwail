@@ -30,6 +30,7 @@ cvar_t		scr_conbrightness = {"scr_conbrightness", "1.0", CVAR_ARCHIVE};
 
 qpic_t		*draw_disc;
 qpic_t		*draw_backtile;
+qboolean	custom_conchars;
 
 gltexture_t *char_texture; //johnfitz
 byte		char_texture_data[256 * 10 * 10];
@@ -460,6 +461,8 @@ void Draw_LoadPics (void)
 		Sys_Error ("Draw_LoadPics: couldn't load conchars");
 	if (info->disksize < 128*128)
 		Sys_Error ("Draw_LoadPics: truncated conchars");
+
+	custom_conchars = (COM_HashBlock (data, 128*218) != 0xc7e2a10a);
 
 	for (i = 0; i < 256; i++)
 	{

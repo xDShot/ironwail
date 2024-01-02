@@ -95,6 +95,7 @@ cvar_t		scr_usekfont = {"scr_usekfont", "0", CVAR_NONE}; // 2021 re-release
 
 cvar_t		scr_hudstyle = {"hudstyle", "2", CVAR_ARCHIVE};
 cvar_t		cl_screenshotname = {"cl_screenshotname", "screenshots/%map%_%date%_%time%", CVAR_ARCHIVE};
+cvar_t		scr_demobar_timeout = {"scr_demobar_timeout", "1", CVAR_ARCHIVE};
 
 cvar_t		scr_viewsize = {"viewsize","100", CVAR_ARCHIVE};
 cvar_t		scr_fov = {"fov","90",CVAR_ARCHIVE};	// 10 - 170
@@ -546,6 +547,7 @@ void SCR_Init (void)
 	Cvar_RegisterVariable (&scr_showspeed);
 	Cvar_RegisterVariable (&scr_clock);
 	Cvar_RegisterVariable (&cl_screenshotname);
+	Cvar_RegisterVariable (&scr_demobar_timeout);
 	//johnfitz
 	Cvar_RegisterVariable (&scr_usekfont); // 2021 re-release
 	Cvar_SetCallback (&scr_fov, SCR_Callback_refdef);
@@ -730,6 +732,142 @@ void SCR_DrawClock (void)
 	}
 
 	scr_tileclear_updates = 0;
+}
+
+/*
+==============
+SCR_PrintMirrored
+==============
+*/
+static void SCR_PrintMirrored (int x, int y, const char *str)
+{
+	x += strlen (str) * 8;
+	while (*str)
+	{
+		Draw_CharacterEx (x, y, -8, 8, 0x80 ^ (*str++));
+		x -= 8;
+	}
+}
+
+/*
+==============
+SCR_DrawDemoControls
+==============
+*/
+void SCR_DrawDemoControls (void)
+{
+	static const int	TIMEBAR_CHARS = 38;
+	static float		prevspeed = 1.0f;
+	static float		prevbasespeed = 1.0f;
+	static float		showtime = 1.0f;
+	static float		textdelay = 0.0f;
+	int					i, len, x, y, min, sec;
+	float				frac;
+	const char			*str;
+	char				name[31]; // size chosen to avoid overlap with side text
+
+	if (!cls.demoplayback || scr_demobar_timeout.value < 0.f)
+	{
+		showtime = 0.f;
+		return;
+	}
+
+	// Determine for how long the demo playback info should be displayed
+	if (cls.demospeed != prevspeed || cls.basedemospeed != prevbasespeed ||			// speed/base speed changed
+		fabs (cls.demospeed) > cls.basedemospeed ||									// fast forward/rewind
+		!scr_demobar_timeout.value)													// controls always shown
+	{
+		prevspeed = cls.demospeed;
+		prevbasespeed = cls.basedemospeed;
+		showtime = scr_demobar_timeout.value > 0.f ? scr_demobar_timeout.value : 1.f;
+	}
+	else
+	{
+		showtime -= host_rawframetime;
+		if (showtime < 0.f)
+		{
+			showtime = 0.f;
+			return;
+		}
+	}
+
+	// Approximate the fraction of the demo that's already been played back
+	// based on the current file offset and total demo size
+	// Note: we need to take into account the starting offset for pak files
+	frac = (ftell (cls.demofile) - cls.demofilestart) / (double)cls.demofilesize;
+	frac = CLAMP (0.f, frac, 1.f);
+
+	if (cl.intermission)
+	{
+		GL_SetCanvas (CANVAS_MENU);
+		y = LERP (glcanvas.bottom, glcanvas.top, 0.125f) + 8;
+	}
+	else
+	{
+		GL_SetCanvas (CANVAS_SBAR);
+		y = glcanvas.bottom - 68;
+	}
+	x = (glcanvas.left + glcanvas.right) / 2 - TIMEBAR_CHARS / 2 * 8;
+
+	// Draw status box background
+	GL_SetCanvasColor (1.f, 1.f, 1.f, scr_sbaralpha.value);
+	M_DrawTextBox (x - 8, y - 8, TIMEBAR_CHARS, 1);
+	GL_SetCanvasColor (1.f, 1.f, 1.f, 1.f);
+
+	// Print playback status on the left (paused/playing/fast-forward/rewind)
+	// Note: character #13 works well as a forward symbol, but Alkaline 1.2 changes it to a disk.
+	// If we have a custom conchars texture we switch to a safer alternative, the '>' character.
+	if (!cls.demospeed)
+		str = "II";
+	else if (fabs (cls.demospeed) > 1.f)
+		str = custom_conchars ? ">>" : "\xD\xD";
+	else 
+		str = custom_conchars ? ">" : "\xD";
+	if (cls.demospeed >= 0.f)
+		M_Print (x, y, str);
+	else
+		SCR_PrintMirrored (x, y, str);
+
+	// Print base playback speed on the right
+	if (!cls.basedemospeed)
+		str = "";
+	else if (fabs (cls.basedemospeed) >= 1.f)
+		str = va ("%gx", fabs (cls.basedemospeed));
+	else
+		str = va ("1/%gx", 1.f / fabs (cls.basedemospeed));
+	M_Print (x + (TIMEBAR_CHARS - strlen (str)) * 8, y, str);
+
+	// Print demo name in the center
+	COM_StripExtension (COM_SkipPath (cls.demofilename), name, sizeof (name));
+	x = (glcanvas.left + glcanvas.right) / 2;
+	M_Print (x - strlen (name) * 8 / 2, y, name);
+
+	// Draw seek bar rail
+	x = (glcanvas.left + glcanvas.right) / 2 - TIMEBAR_CHARS / 2 * 8;
+	y -= 8;
+	Draw_Character (x - 8, y, 128);
+	for (i = 0; i < TIMEBAR_CHARS; i++)
+		Draw_Character (x + i * 8, y, 129);
+	Draw_Character (x + i * 8, y, 130);
+
+	// Draw seek bar cursor
+	x += (TIMEBAR_CHARS - 1) * 8 * frac;
+	Draw_Character (x, y, 131);
+
+	// Print current time above the cursor
+	y -= 11;
+	sec = (int) cl.time;
+	min = sec / 60;
+	sec %= 60;
+	str = va ("%i:%02i", min, sec);
+	x -= (strchr (str, ':') - str) * 8; // align ':' with cursor
+	len = strlen (str);
+	// M_DrawTextBox effectively rounds width up to a multiple of 2,
+	// so if our length is odd we pad by half a character on each side
+	GL_SetCanvasColor (1.f, 1.f, 1.f, scr_sbaralpha.value);
+	M_DrawTextBox (x - 8 - (len & 1) * 8 / 2, y - 8, len + (len & 1), 1);
+	GL_SetCanvasColor (1.f, 1.f, 1.f, 1.f);
+	Draw_String (x, y, str);
 }
 
 /*
@@ -1545,11 +1683,13 @@ void SCR_UpdateScreen (void)
 	else if (cl.intermission == 1 && key_dest == key_game) //end of level
 	{
 		Sbar_IntermissionOverlay ();
+		SCR_DrawDemoControls ();
 	}
 	else if (cl.intermission == 2 && key_dest == key_game) //end of episode
 	{
 		Sbar_FinaleOverlay ();
 		SCR_CheckDrawCenterString ();
+		SCR_DrawDemoControls ();
 	}
 	else
 	{
@@ -1561,6 +1701,7 @@ void SCR_UpdateScreen (void)
 		Sbar_Draw ();
 		SCR_DrawDevStats (); //johnfitz
 		SCR_DrawClock (); //johnfitz
+		SCR_DrawDemoControls ();
 		SCR_DrawSpeed ();
 		SCR_DrawConsole ();
 		M_Draw ();

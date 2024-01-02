@@ -2964,7 +2964,6 @@ static void Host_Pause_f (void)
 	if (cls.demoplayback)
 	{
 		cls.demopaused = !cls.demopaused;
-		cl.paused = cls.demopaused;
 		return;
 	}
 

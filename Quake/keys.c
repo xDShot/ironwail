@@ -1061,7 +1061,7 @@ void Key_EventWithKeycode (int key, qboolean down, int keycode)
 			if (key_dest == key_game && !con_forcedup)
 				return; // ignore autorepeats in game mode
 		}
-		else if (key >= 200 && !keybindings[key] && key_dest == key_game)
+		else if (key >= 200 && !keybindings[key] && key_dest == key_game && !cls.demoplayback)
 		{
 			int optkey;
 			if (Key_GetKeysForCommand ("menu_options", &optkey, 1))
@@ -1129,6 +1129,59 @@ void Key_EventWithKeycode (int key, qboolean down, int keycode)
 		if (down && !wasdown)
 			Cbuf_AddText ("screenshot\n");
 		return;
+	}
+
+// demo controls
+	if (cls.demoplayback && key_dest == key_game)
+	{
+		switch (key)
+		{
+		case K_SPACE:
+		case K_YBUTTON:
+			// Pause
+			if (down > wasdown)
+				cls.demopaused = !cls.demopaused;
+			return;
+
+		case K_UPARROW:
+		case K_DPAD_UP:
+			// Resume/increase speed
+			if (down > wasdown)
+			{
+				if (!cls.demopaused)
+					cls.basedemospeed = CLAMP (0.25f, cls.basedemospeed * 2.f, 8.f);
+				cls.demopaused = false;
+			}
+			return;
+
+		case K_DOWNARROW:
+		case K_DPAD_DOWN:
+			// Decrease speed/pause
+			if (down > wasdown)
+			{
+				cls.basedemospeed *= 0.5f;
+				if (cls.basedemospeed < 0.25f)
+				{
+					cls.basedemospeed = 0.25f;
+					cls.demopaused = true;
+				}
+			}
+			return;
+
+		case K_LEFTARROW:
+		case K_RIGHTARROW:
+		case K_DPAD_LEFT:
+		case K_DPAD_RIGHT:
+		case K_SHIFT:
+		case K_CTRL:
+			// Temporary modifiers: they don't perform their actions on up/down events, but are queried per frame instead
+			// to avoid having to manage state transitions (e.g. pressing esc while still holding left arrow to rewind).
+			return;
+
+		default:
+			// Not a demo control key
+			break;
+		}
 	}
 
 // key up events only generate commands if the game key binding is

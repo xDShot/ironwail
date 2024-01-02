@@ -27,6 +27,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // to touch the vid buffer
 
 extern	qpic_t		*draw_disc;	// also used on sbar
+extern	qboolean	custom_conchars;
 
 void Draw_Init (void);
 void Draw_Character (int x, int y, int num);
