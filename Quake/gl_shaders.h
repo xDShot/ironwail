@@ -159,16 +159,22 @@ static const char warpscale_fragment_shader[] =
 ////////////////////////////////////////////////////////////////
 
 #define NOISE_FUNCTIONS \
-"// Interleaved gradient noise - Jorge Jimenez\n"\
-"// http://www.iryoku.com/next-generation-post-processing-in-call-of-duty-advanced-warfare \n"\
-"float ignoise01(vec2 p)\n"\
+"// ALU-only 16x16 Bayer matrix\n"\
+"float bayer01(ivec2 coord)\n"\
 "{\n"\
-"	return fract(52.9829189 * fract(dot(p, vec2(0.06711056, 0.00583715))));\n"\
+"	coord &= 15;\n"\
+"	coord.y ^= coord.x;\n"\
+"	uint v = uint(coord.y | (coord.x << 8));	// 0  0  0  0 | x3 x2 x1 x0 |  0  0  0  0 | y3 y2 y1 y0\n"\
+"	v = (v ^ (v << 2)) & 0x3333;				// 0  0 x3 x2 |  0  0 x1 x0 |  0  0 y3 y2 |  0  0 y1 y0\n"\
+"	v = (v ^ (v << 1)) & 0x5555;				// 0 x3  0 x2 |  0 x1  0 x0 |  0 y3  0 y2 |  0 y1  0 y0\n"\
+"	v |= v >> 7;								// 0 x3  0 x2 |  0 x1  0 x0 | x3 y3 x2 y2 | x1 y1 x0 y0\n"\
+"	v = bitfieldReverse(v) >> 24;				// 0  0  0  0 |  0  0  0  0 | y0 x0 y1 x1 | y2 x2 y3 x3\n"\
+"	return float(v) * (1.0/256.0);\n"\
 "}\n"\
 "\n"\
-"float ignoise(vec2 p)\n"\
+"float bayer(ivec2 coord)\n"\
 "{\n"\
-"	return ignoise01(p) - 0.5;\n"\
+"	return bayer01(coord) - 0.5;\n"\
 "}\n"\
 "\n"\
 "// Hash without Sine\n"\
@@ -216,13 +222,10 @@ SOFTWARE.*/\
 "	return x;\n"\
 "}\n"\
 "\n"\
-"#define DITHER_NOISE(uv) tri(ignoise01(uv))\n"\
+"#define DITHER_NOISE(uv) tri(bayer01(ivec2(uv)))\n"\
 "#define SCREEN_SPACE_NOISE() DITHER_NOISE(floor(gl_FragCoord.xy)+0.5)\n"\
-"#define SUPPRESS_BANDING() \\\n"\
-"	(gl_NumSamples > 1 ?\\\n"\
-"		ignoise(floor(gl_FragCoord.xy) + 0.5) * (1.5/255.) :\\\n"\
-"		ignoise(gl_FragCoord.xy) * (1.5/255.))\n"\
-"#define PAL_NOISESCALE (12./255.)\n"\
+"#define SUPPRESS_BANDING() (bayer(ivec2(gl_FragCoord.xy)) * (1./255.))\n"\
+"#define PAL_NOISESCALE (9./255.)\n"\
 
 ////////////////////////////////////////////////////////////////
 
