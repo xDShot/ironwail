@@ -3607,7 +3607,7 @@ void M_AdjustSliders (int dir)
 		break;
 
 	case OPT_HUDSTYLE:	// hud style
-		Cvar_SetValueQuick (&scr_hudstyle, ((int) q_max (scr_hudstyle.value, 0.f) + 4 + dir) % 4);
+		Cvar_SetValueQuick (&scr_hudstyle, ((int) q_max (scr_hudstyle.value, 0.f) + (int) HUD_COUNT + dir) % (int) HUD_COUNT);
 		break;
 
 	case OPT_ALWAYRUN:	// always run
@@ -4042,14 +4042,14 @@ static void M_Options_DrawItem (int y, int item)
 		break;
 
 	case OPT_HUDSTYLE:
-		if (scr_hudstyle.value < 1)
-			M_Print (x, y, "Classic");
-		else if (scr_hudstyle.value < 2)
-			M_Print (x, y, "Modern 1");
-		else if (scr_hudstyle.value < 3)
-			M_Print (x, y, "Modern 2");
-		else
-			M_Print(x, y, "QuakeWorld");
+		switch (hudstyle)
+		{
+		case HUD_MODERN_CENTERAMMO:		M_Print (x, y, "Modern 1"); break;
+		case HUD_MODERN_SIDEAMMO:		M_Print (x, y, "Modern 2"); break;
+		case HUD_QUAKEWORLD:			M_Print (x, y, "QuakeWorld"); break;
+		default:
+		case HUD_CLASSIC:				M_Print (x, y, "Classic"); break;
+		}
 		break;
 
 	case OPT_SNDVOL:

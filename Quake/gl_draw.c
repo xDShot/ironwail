@@ -1121,11 +1121,11 @@ void Draw_GetCanvasTransform (canvastype type, drawtransform_t *transform)
 		Draw_Transform (vid.guiwidth/s, vid.guiheight/s, s, CANVAS_ALIGN_CENTERX, CANVAS_ALIGN_CENTERY, transform);
 		break;
 	case CANVAS_SBAR:
-		if (scr_hudstyle.value > 2)	// qw hud could cut off if too short
+		if (hudstyle == HUD_QUAKEWORLD)	// qw hud could cut off if too short
 			s = CLAMP (1.0f, scr_sbarscale.value, (float)vid.guiheight / 240.0f);
 		else
 			s = CLAMP(1.0f, scr_sbarscale.value, (float)vid.guiwidth / 320.0f);
-		if (cl.gametype == GAME_DEATHMATCH && (scr_hudstyle.value < 1 || scr_hudstyle.value > 2) )
+		if (cl.gametype == GAME_DEATHMATCH && (hudstyle == HUD_CLASSIC || hudstyle == HUD_QUAKEWORLD))
 			Draw_Transform (320, 48, s, CANVAS_ALIGN_LEFT, CANVAS_ALIGN_BOTTOM, transform);
 		else
 			Draw_Transform (320, 48, s, CANVAS_ALIGN_CENTERX, CANVAS_ALIGN_BOTTOM, transform);

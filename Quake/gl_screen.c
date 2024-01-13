@@ -131,6 +131,8 @@ float		scr_disabled_time;
 
 int	scr_tileclear_updates = 0; //johnfitz
 
+hudstyle_t	hudstyle;
+
 void SCR_ScreenShot_f (void);
 
 /*
@@ -399,7 +401,7 @@ static void SCR_CalcRefdef (void)
 	scale = CLAMP (1.0f, scr_sbarscale.value, (float)glwidth / 320.0f);
 	scale *= (float) vid.height / vid.guiheight;
 
-	if (size >= 120 || cl.intermission || scr_sbaralpha.value < 1 || scr_hudstyle.value >= 1 || cl.qcvm.extfuncs.CSQC_DrawHud) //johnfitz -- scr_sbaralpha.value
+	if (size >= 120 || cl.intermission || scr_sbaralpha.value < 1 || hudstyle != HUD_CLASSIC || cl.qcvm.extfuncs.CSQC_DrawHud) //johnfitz -- scr_sbaralpha.value
 		sb_lines = 0;
 	else if (size >= 110)
 		sb_lines = 24 * scale;
@@ -495,6 +497,20 @@ void SCR_PixelAspect_f (cvar_t *cvar)
 	VID_RecalcInterfaceSize ();
 }
 
+/*
+==================
+SCR_HUDStyle_f
+
+Updates hudstyle variable and invalidates refdef when scr_hudstyle changes
+==================
+*/
+void SCR_HUDStyle_f (cvar_t *cvar)
+{
+	int val = (int) cvar->value;
+	hudstyle = (hudstyle_t) CLAMP (0, val, (int) HUD_COUNT - 1);
+	vid.recalc_refdef = 1;
+}
+
 //============================================================================
 
 /*
@@ -529,7 +545,6 @@ void SCR_Init (void)
 	Cvar_RegisterVariable (&scr_showfps);
 	Cvar_RegisterVariable (&scr_showspeed);
 	Cvar_RegisterVariable (&scr_clock);
-	Cvar_RegisterVariable (&scr_hudstyle);
 	Cvar_RegisterVariable (&cl_screenshotname);
 	//johnfitz
 	Cvar_RegisterVariable (&scr_usekfont); // 2021 re-release
@@ -537,7 +552,8 @@ void SCR_Init (void)
 	Cvar_SetCallback (&scr_fov_adapt, SCR_Callback_refdef);
 	Cvar_SetCallback (&scr_zoomfov, SCR_Callback_refdef);
 	Cvar_SetCallback (&scr_viewsize, SCR_Callback_refdef);
-	Cvar_SetCallback (&scr_hudstyle, SCR_Callback_refdef);
+	Cvar_SetCallback (&scr_hudstyle, SCR_HUDStyle_f);
+	Cvar_RegisterVariable (&scr_hudstyle);
 	Cvar_RegisterVariable (&scr_fov);
 	Cvar_RegisterVariable (&scr_fov_adapt);
 	Cvar_RegisterVariable (&scr_zoomfov);
@@ -615,7 +631,7 @@ void SCR_DrawFPS (void)
 		else
 			sprintf (st, "%.2f ms", 1000.f / lastfps);
 		x = 320 - (strlen(st)<<3);
-		if (scr_hudstyle.value >= 1)
+		if (hudstyle != HUD_CLASSIC)
 		{
 			x = 320 - 16 - (strlen(st)<<3);
 			y = 8;
@@ -702,7 +718,7 @@ void SCR_DrawClock (void)
 		return;
 
 	//draw it
-	if (scr_hudstyle.value < 1)
+	if (hudstyle == HUD_CLASSIC)
 	{
 		GL_SetCanvas (CANVAS_BOTTOMRIGHT);
 		Draw_String (320 - (strlen(str)<<3), 200 - 8, str);
@@ -868,7 +884,7 @@ void SCR_DrawSaving (void)
 
 	x = 320 - 16 - draw_disc->width;
 	y = 8;
-	if (scr_hudstyle.value >= 1 && scr_viewsize.value < 130)
+	if (hudstyle != HUD_CLASSIC && scr_viewsize.value < 130)
 	{
 		if (scr_clock.value) y += 8;
 		if (scr_showfps.value) y += 8;
