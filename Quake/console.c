@@ -104,6 +104,7 @@ cvar_t		con_logcenterprint = {"con_logcenterprint", "1", CVAR_NONE}; //johnfitz
 cvar_t		con_notifycenter = {"con_notifycenter", "0", CVAR_ARCHIVE};
 cvar_t		con_notifyfade = {"con_notifyfade", "0", CVAR_ARCHIVE};
 cvar_t		con_notifyfadetime = {"con_notifyfadetime", "0.5", CVAR_ARCHIVE};
+cvar_t		con_maxcols = {"con_maxcols", "0", CVAR_ARCHIVE};
 
 char		con_lastcenterstring[1024]; //johnfitz
 
@@ -889,6 +890,7 @@ void Con_Init (void)
 	Cvar_RegisterVariable (&con_notifyfade);
 	Cvar_RegisterVariable (&con_notifyfadetime);
 	Cvar_RegisterVariable (&con_logcenterprint); //johnfitz
+	Cvar_RegisterVariable (&con_maxcols);
 
 	Cmd_AddCommand ("toggleconsole", Con_ToggleConsole_f);
 	Cmd_AddCommand ("messagemode", Con_MessageMode_f);
@@ -1699,6 +1701,85 @@ static void BuildTabList (const char *partial)
 
 /*
 ============
+Con_FormatTabMatch
+============
+*/
+static void Con_FormatTabMatch (const tab_t *t, char *dst, size_t dstsize)
+{
+	char tinted[MAXCMDLINE];
+
+	COM_TintSubstring (t->name, bash_partial, tinted, sizeof (tinted));
+
+	if (!t->type)
+		q_strlcpy (dst, tinted, dstsize);
+	else if (t->type[0] == '#' && !t->type[1])
+		q_snprintf (dst, dstsize, "%s (%d)", tinted, t->count);
+	else
+		q_snprintf (dst, dstsize, "%s (%s)", tinted, t->type);
+}
+
+/*
+============
+Con_PrintTabList
+============
+*/
+static void Con_PrintTabList (void)
+{
+	char	buf[MAXCMDLINE];
+	int		i, maxlen, cols, matches, total;
+	tab_t	*t;
+
+// determine maximum item length
+	maxlen = 0;
+	t = tablist;
+	do
+	{
+		Con_FormatTabMatch (t, buf, sizeof (buf));
+		total = (int) strlen (buf);
+		maxlen = q_max (maxlen, total);
+		t = t->next;
+	} while (t != tablist);
+
+// determine number of columns
+	if (!maxlen)
+		return;
+	maxlen += 3;										// indent
+	maxlen = q_max (maxlen, 8);							// min width
+	maxlen = (maxlen + 3) & ~3;							// round up to multiple of 4
+	cols = q_max (con_linewidth, maxlen) / maxlen;
+	if (con_maxcols.value >= 1.f)
+		cols = q_min (cols, (int) con_maxcols.value);	// apply user limit
+
+// print all matches
+	Con_SafePrintf("\n");
+	i = matches = total = 0;
+	t = tablist;
+	do
+	{
+		Con_FormatTabMatch (t, buf, sizeof (buf));
+		if (++i == cols)
+		{
+			i = 0;
+			Con_SafePrintf ("   %s\n", buf);
+		}
+		else
+			Con_SafePrintf ("   %*s", -(maxlen-3), buf);
+		if (t->type && t->type[0] == '#' && !t->type[1])
+			total += t->count;
+		t = t->next;
+		++matches;
+	} while (t != tablist);
+	if (i != 0)
+		Con_SafePrintf ("\n");
+
+	if (total > 0)
+		Con_SafePrintf ("   %d unique matches (%d total)\n", matches, total);
+
+	Con_SafePrintf("\n");
+}
+
+/*
+============
 Con_TabComplete -- johnfitz
 ============
 */
@@ -1753,34 +1834,7 @@ void Con_TabComplete (tabcomplete_t mode)
 
 		// print list if length > 1 and action is user-initiated
 		if (tablist->next != tablist && mode == TABCOMPLETE_USER)
-		{
-			int matches = 0;
-			int total = 0;
-			t = tablist;
-			Con_SafePrintf("\n");
-			do
-			{
-				char tinted[MAXCMDLINE];
-				COM_TintSubstring (t->name, bash_partial, tinted, sizeof (tinted));
-				if (t->type)
-				{
-					if (t->type[0] == '#' && !t->type[1])
-					{
-						Con_SafePrintf("   %s (%d)\n", tinted, t->count);
-						total += t->count;
-					}
-					else
-						Con_SafePrintf("   %s (%s)\n", tinted, t->type);
-				}
-				else
-					Con_SafePrintf("   %s\n", tinted);
-				t = t->next;
-				++matches;
-			} while (t != tablist);
-			if (total > 0)
-				Con_Printf ("   %d unique matches (%d total)\n", matches, total);
-			Con_SafePrintf("\n");
-		}
+			Con_PrintTabList ();
 
 	//	match = tablist->name;
 	// First time, just show maximum matching chars -- S.A.
