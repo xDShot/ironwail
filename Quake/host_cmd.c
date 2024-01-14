@@ -1448,11 +1448,9 @@ static qboolean SkyList_AddFile (const char *path)
 	// Check that the file is in the right directory
 	// We need this for pak files, which are all passed to this function
 	// without any kind of path filtering
-	len = strlen (path);
-	if (len <= sizeof (prefix) - 1 || q_strncasecmp (path, prefix, sizeof (prefix) - 1))
+	if (q_strncasecmp (path, prefix, sizeof (prefix) - 1) != 0)
 		return false;
 	path += sizeof (prefix) - 1;
-	len -= sizeof (prefix) - 1;
 
 	// Only accept TGA files
 	ext = COM_FileGetExtension (path);
@@ -1461,6 +1459,7 @@ static qboolean SkyList_AddFile (const char *path)
 
 	// Check that the image has the right suffix
 	COM_StripExtension (path, skyname, sizeof (skyname));
+	len = strlen (skyname);
 	if (len < sizeof (suffix) - 1)
 		return false;
 	len -= sizeof (suffix) - 1;
@@ -1469,7 +1468,7 @@ static qboolean SkyList_AddFile (const char *path)
 	skyname[len] = '\0';
 
 	// All ok, add skybox to the list
-	FileList_Add (skyname + (sizeof (prefix) - 1), &skylist);
+	FileList_Add (skyname, &skylist);
 
 	return true;
 }
