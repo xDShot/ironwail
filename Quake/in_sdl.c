@@ -307,7 +307,7 @@ static void IN_UseController (SDL_GameController *gamecontroller)
 	controllername = SDL_GameControllerName (gamecontroller);
 	if (!controllername)
 		controllername = "[Unknown controller]";
-	Con_Printf ("Using controller: %s (%x)\n", controllername);
+	Con_Printf ("Using controller: %s\n", controllername);
 
 	joy_active_controller = gamecontroller;
 	joy_active_instanceid = SDL_JoystickInstanceID (SDL_GameControllerGetJoystick (gamecontroller));
