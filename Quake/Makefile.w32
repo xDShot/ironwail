@@ -54,6 +54,7 @@ LDFLAGS?= -m32 -mwindows -static-libgcc
 DFLAGS ?=
 CFLAGS ?= -m32 -Wall -Wno-trigraphs
 CFLAGS += $(call check_gcc,-std=gnu11,)
+CFLAGS += $(call check_gcc,-Werror=format,)
 CFLAGS += $(CPUFLAGS)
 ifneq ($(DEBUG),0)
 DFLAGS += -DDEBUG
