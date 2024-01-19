@@ -25,6 +25,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 static byte *Image_LoadPCX (FILE *f, int *width, int *height);
 
+#ifdef __GNUC__
+	// Suppress unused function warnings on GCC/clang
+	#pragma GCC diagnostic push
+	#pragma GCC diagnostic ignored "-Wunused-function"
+#endif
+
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_STATIC
 #define STBI_NO_BMP
@@ -35,6 +41,11 @@ static byte *Image_LoadPCX (FILE *f, int *width, int *height);
 #define STBI_NO_PNM
 #define STBI_NO_LINEAR
 #include "stb_image.h"
+
+#ifdef __GNUC__
+	// Restore unused function warnings on GCC/clang
+	#pragma GCC diagnostic pop
+#endif
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_STATIC
