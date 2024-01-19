@@ -760,7 +760,6 @@ void SCR_DrawDemoControls (void)
 	static float		prevspeed = 1.0f;
 	static float		prevbasespeed = 1.0f;
 	static float		showtime = 1.0f;
-	static float		textdelay = 0.0f;
 	int					i, len, x, y, min, sec;
 	float				frac;
 	const char			*str;
