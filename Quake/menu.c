@@ -201,9 +201,6 @@ void M_Options_Init (enum m_state_e state);
 #define SEARCH_ERROR_STATUS_TIMEOUT		0.25
 #define SEARCH_BACKSPACE_COOLDOWN		0.75
 
-// Don't show the gamepad toggle by default
-static qboolean m_gamepad_allowdisable = false;
-
 static void M_ThrottledSound (const char *sound)
 {
 	if (strcmp (m_lastsound, sound) == 0 && realtime - m_lastsoundtime < ui_sound_throttle.value)
@@ -3159,6 +3156,9 @@ void M_Calibration_Key (int key)
 //=============================================================================
 /* GAMEPAD MENU */
 
+// Whether or not to show the "Gamepad: on/off" option
+static qboolean m_gamepad_allowdisable = false;
+
 #define MIN_JOY_SENS			60.f
 #define MAX_JOY_SENS			720.f
 #define MIN_JOY_EXPONENT		1.f
@@ -3179,6 +3179,16 @@ M_Menu_Gamepad_f
 */
 void M_Menu_Gamepad_f (void)
 {
+	// - If there's no argument then the command probably came from the console, which means a keyboard
+	//   is likely present, so it's safe to disable the gamepad.
+	// - If there's an argument then it dictates whether or not to show the "Gamepad: on/off" toggle. 
+	// - If the gamepad is already disabled we always show the option so that it can be re-enabled.
+
+	m_gamepad_allowdisable =
+		Cmd_Argc () < 2 ||
+		atof (Cmd_Argv (1)) != 0.f ||
+		!joy_enable.value;
+
 	M_Options_Init (m_gamepad);
 }
 
@@ -4372,11 +4382,10 @@ void M_Options_Key (int k)
 			M_Menu_Video_f ();
 			break;
 		case OPT_GAMEPAD:
-			// Only allow disabling the gamepad if we've entered the menu at least once using the keyboard or mouse.
+			// Only show the gamepad on/off toggle if we've entered the menu via mouse or keyboard.
 			// We do this to avoid getting into an awkward state on devices where the gamepad is the primary input method,
 			// such as the Steam Deck.
-			if (k != K_ABUTTON)
-				m_gamepad_allowdisable = true;
+			Cbuf_AddText (va ("menu_gamepad %d\n", k != K_ABUTTON));
 			M_Menu_Gamepad_f ();
 			break;
 
