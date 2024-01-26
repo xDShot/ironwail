@@ -106,6 +106,12 @@ static unsigned int updates_countdown = 0;
 static qboolean gyro_present = false;
 static qboolean gyro_button_pressed = false;
 
+// orange LED, seemed fitting for Quake
+#define DEFAULT_LED_R 80
+#define DEFAULT_LED_G 20
+#define DEFAULT_LED_B 0
+static uint8_t joy_led[3] = { DEFAULT_LED_R, DEFAULT_LED_G, DEFAULT_LED_B };
+
 static int SDLCALL IN_FilterMouseEvents (const SDL_Event *event)
 {
 	switch (event->type)
@@ -336,8 +342,7 @@ static qboolean IN_UseController (int device_index)
 #if SDL_VERSION_ATLEAST(2, 0, 14)
 	if (SDL_GameControllerHasLED (joy_active_controller))
 	{
-		// orange LED, seemed fitting for Quake
-		SDL_GameControllerSetLED (joy_active_controller, 80, 20, 0);
+		SDL_GameControllerSetLED (joy_active_controller, joy_led[0], joy_led[1], joy_led[2]);
 	}
 	if (SDL_GameControllerHasSensor (joy_active_controller, SDL_SENSOR_GYRO)
 		&& !SDL_GameControllerSetSensorEnabled (joy_active_controller, SDL_SENSOR_GYRO, SDL_TRUE))
@@ -1365,5 +1370,30 @@ void IN_SendKeyEvents (void)
 	}
 
 	IN_UpdateGyroCalibration ();
+
+#if SDL_VERSION_ATLEAST(2, 0, 14)
+	if (SDL_GameControllerHasLED (joy_active_controller))
+	{
+		const uint8_t default_led[3] = { DEFAULT_LED_R, DEFAULT_LED_G, DEFAULT_LED_B };
+		
+		// Blend flashes (v_blend from view.c) on top of default color
+		float joy_blend_scale = pow( sin( 0.5 * v_blend[3] * M_PI ), 0.5);
+
+		for (int c = 0; c < 3; c++)
+		{
+			uint8_t color = 255 * v_blend[c];
+			if ( color >= joy_led[c] )
+			{
+				joy_led[c] = default_led[c] + ( color - default_led[c] ) * joy_blend_scale;
+			}
+			else
+			{
+				joy_led[c] = default_led[c] - ( default_led[c] - color ) * joy_blend_scale;
+			}
+		};
+
+		SDL_GameControllerSetLED (joy_active_controller, joy_led[0], joy_led[1], joy_led[2]);
+    }
+#endif // SDL_VERSION_ATLEAST(2, 0, 14)
 }
 
