@@ -1375,20 +1375,41 @@ void IN_SendKeyEvents (void)
 	if (SDL_GameControllerHasLED (joy_active_controller))
 	{
 		const uint8_t default_led[3] = { DEFAULT_LED_R, DEFAULT_LED_G, DEFAULT_LED_B };
+		const uint8_t punch_led[3] = { 255, 255, 255 };
 		
-		// Blend flashes (v_blend from view.c) on top of default color
+		// Blend flashes (v_blend from view.c) on top of current color
 		float joy_blend_scale = pow( sin( 0.5 * v_blend[3] * M_PI ), 0.5);
-
-		for (int c = 0; c < 3; c++)
+		
+		for (int c1 = 0; c1 < 3; c1++)
 		{
-			uint8_t color = 255 * v_blend[c];
-			if ( color >= joy_led[c] )
+			uint8_t color1 = 255 * v_blend[c1];
+			if ( color1 >= joy_led[c1] )
 			{
-				joy_led[c] = default_led[c] + ( color - default_led[c] ) * joy_blend_scale;
+				joy_led[c1] = default_led[c1] + ( color1 - default_led[c1] ) * joy_blend_scale;
 			}
 			else
 			{
-				joy_led[c] = default_led[c] - ( default_led[c] - color ) * joy_blend_scale;
+				joy_led[c1] = default_led[c1] - ( default_led[c1] - color1 ) * joy_blend_scale;
+			}
+		};
+		
+		float punchblend = (cl.time - cl.punchtime);// / 0.1f;
+
+		if (punchblend < 0.0f) punchblend = 0.0f;
+		if (punchblend > 1.0f) punchblend = 1.0f;
+		
+		punchblend = (1 - punchblend) * 0.2;
+		
+		for (int c2 = 0; c2 < 3; c2++)
+		{
+			uint8_t color2 = punch_led[c2];
+			if ( color2 >= joy_led[c2] )
+			{
+				joy_led[c2] = joy_led[c2] + ( color2 - joy_led[c2] ) * punchblend;
+			}
+			else
+			{
+				joy_led[c2] = joy_led[c2] - ( joy_led[c2] - color2 ) * punchblend;
 			}
 		};
 
