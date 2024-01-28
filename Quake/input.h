@@ -52,6 +52,8 @@ void IN_StartGyroCalibration (void);
 qboolean IN_IsCalibratingGyro (void);
 
 qboolean IN_HasGamepad (void);
+const char *IN_GetGamepadName (void);
+void IN_UseNextGamepad (int dir, qboolean allow_disable);
 
 void IN_SendKeyEvents (void);
 // used as a callback for Sys_SendKeyEvents() by some drivers

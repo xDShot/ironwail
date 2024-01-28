@@ -63,7 +63,7 @@ cvar_t	joy_invert = { "joy_invert", "0", CVAR_ARCHIVE };
 cvar_t	joy_exponent = { "joy_exponent", "2", CVAR_ARCHIVE };
 cvar_t	joy_exponent_move = { "joy_exponent_move", "2", CVAR_ARCHIVE };
 cvar_t	joy_swapmovelook = { "joy_swapmovelook", "0", CVAR_ARCHIVE };
-cvar_t	joy_enable = { "joy_enable", "1", CVAR_ARCHIVE };
+cvar_t	joy_device = { "joy_device", "0", CVAR_ARCHIVE };
 
 cvar_t gyro_enable = {"gyro_enable", "1", CVAR_ARCHIVE};
 cvar_t gyro_mode = {"gyro_mode", "0", CVAR_ARCHIVE}; // see gyromode_t
@@ -79,6 +79,7 @@ cvar_t gyro_calibration_z = {"gyro_calibration_z", "0", CVAR_ARCHIVE};
 cvar_t gyro_noise_thresh = {"gyro_noise_thresh", "1.5", CVAR_ARCHIVE};
 
 static SDL_JoystickID joy_active_instanceid = -1;
+static int joy_active_device = -1;
 static SDL_GameController *joy_active_controller = NULL;
 static char joy_active_name[256];
 
@@ -281,36 +282,54 @@ void IN_DeactivateForMenu (void)
 	IN_Deactivate(modestate == MS_WINDOWED || ui_mouse.value);
 }
 
-static void IN_UseController (SDL_GameController *gamecontroller)
+static qboolean IN_UseController (int device_index)
 {
+	SDL_GameController *gamecontroller;
 	const char *controllername;
 
-	if (gamecontroller == joy_active_controller)
-		return;
+	if (device_index == joy_active_device)
+		return true;
 
-	if (joy_active_controller)
+	if (joy_active_device != -1)
 	{
 		SDL_GameControllerClose (joy_active_controller);
 
-		Con_Printf ("Controller removed: %s\n", joy_active_name);
+		// Only show "gamepad removed" message when disabling the gamepad altogether,
+		// not when switching to a different device
+		if (device_index == -1)
+			Con_Printf ("Gamepad removed: %s\n", joy_active_name);
 
 		joy_active_name[0] = '\0';
 		joy_active_controller = NULL;
 		joy_active_instanceid = -1;
+		joy_active_device = -1;
+		Cvar_SetValueQuick (&joy_device, -1);
 		gyro_present = false;
 		gyro_yaw = gyro_pitch = 0.f;
 	}
 
+	if (device_index == -1)
+		return true;
+
+	if (device_index < 0 || device_index >= SDL_NumJoysticks ())
+		return false;
+
+	gamecontroller = SDL_GameControllerOpen (device_index);
 	if (!gamecontroller)
-		return;
+	{
+		Con_Warning ("couldn't open gamepad device %d\n", device_index);
+		return false;
+	}
 
 	controllername = SDL_GameControllerName (gamecontroller);
 	if (!controllername)
-		controllername = "[Unknown controller]";
-	Con_Printf ("Using controller: %s\n", controllername);
+		controllername = "[Unknown gamepad]";
+	Con_Printf ("Using gamepad: %s\n", controllername);
 
 	joy_active_controller = gamecontroller;
 	joy_active_instanceid = SDL_JoystickInstanceID (SDL_GameControllerGetJoystick (gamecontroller));
+	joy_active_device = device_index;
+	Cvar_SetValueQuick (&joy_device, device_index);
 	// Save controller name so we can print it when unplugged (SDL_GameControllerName would return NULL)
 	q_strlcpy (joy_active_name, controllername, sizeof (joy_active_name));
 
@@ -335,6 +354,35 @@ static void IN_UseController (SDL_GameController *gamecontroller)
 		Con_Printf ("Gyro sensor not found\n");
 	}
 #endif // SDL_VERSION_ATLEAST(2, 0, 14)
+
+	return true;
+}
+
+static void IN_SetupJoystick (void)
+{
+	int	count = SDL_NumJoysticks ();
+	int	device_index = CLAMP (-1, (int)joy_device.value, count - 1);
+	IN_UseController (device_index);
+}
+
+static qboolean IN_RemapJoystick (void)
+{
+	int i, count;
+
+	if (joy_active_instanceid == -1)
+		return false;
+
+	for (i = 0, count = SDL_NumJoysticks (); i < count; i++)
+	{
+		if (SDL_JoystickGetDeviceInstanceID (i) == joy_active_instanceid)
+		{
+			joy_active_device = i;
+			Cvar_SetValueQuick (&joy_device, i);
+			return true;
+		}
+	}
+
+	return false;
 }
 
 void IN_StartupJoystick (void)
@@ -342,7 +390,6 @@ void IN_StartupJoystick (void)
 	int i;
 	int nummappings;
 	char controllerdb[MAX_OSPATH];
-	SDL_GameController *gamecontroller;
 	
 	if (COM_CheckParm("-nojoy"))
 		return;
@@ -362,28 +409,7 @@ void IN_StartupJoystick (void)
 			Con_Printf("%d mappings loaded from gamecontrollerdb.txt\n", nummappings);
 	}
 
-	for (i = 0; i < SDL_NumJoysticks(); i++)
-	{
-		const char *joyname = SDL_JoystickNameForIndex(i);
-		if ( SDL_IsGameController(i) )
-		{
-			const char *controllername = SDL_GameControllerNameForIndex(i);
-			gamecontroller = SDL_GameControllerOpen(i);
-			if (gamecontroller)
-			{
-				IN_UseController(gamecontroller);
-				break;
-			}
-			else
-			{
-				Con_Warning("failed to open controller: %s\n", controllername != NULL ? controllername : "NULL");
-			}
-		}
-		else
-		{
-			Con_Warning("joystick missing controller mappings: %s\n", joyname != NULL ? joyname : "NULL" );
-		}
-	}
+	IN_SetupJoystick ();
 }
 
 void IN_ShutdownJoystick (void)
@@ -396,6 +422,32 @@ qboolean IN_HasGamepad (void)
 	return joy_active_controller != NULL;
 }
 
+const char *IN_GetGamepadName (void)
+{
+	return joy_active_controller ? joy_active_name : NULL;
+}
+
+void IN_UseNextGamepad (int dir, qboolean allow_disable)
+{
+	int i, j, numiter, numdev;
+
+	numdev = SDL_NumJoysticks ();
+	numiter = allow_disable ? numdev : numdev - 1;
+
+	for (i = 0, j = joy_active_device + dir; i < numiter; i++, j += dir)
+	{
+		if (j < -1)
+			j = numdev - 1;
+		else if (j < 0)
+			j = allow_disable ? -1 : numdev - 1;
+		else if (j >= numdev)
+			j = allow_disable ? -1 : 0;
+
+		if ((j == -1 || SDL_IsGameController (j)) && IN_UseController (j))
+			return;
+	}
+}
+
 void IN_GyroActionDown (void)
 {
 	gyro_button_pressed = true;
@@ -404,6 +456,35 @@ void IN_GyroActionDown (void)
 void IN_GyroActionUp (void)
 {
 	gyro_button_pressed = false;
+}
+
+/*
+================
+Joy_Device_f
+
+Called when joy_device changes
+================
+*/
+static void Joy_Device_f (cvar_t *cvar)
+{
+	if ((int)cvar->value != joy_active_device)
+		IN_SetupJoystick ();
+}
+
+/*
+================
+Joy_Device_Completion_f
+
+Tab completion for the joy_device cvar
+================
+*/
+static void Joy_Device_Completion_f (cvar_t *cvar, const char *partial)
+{
+	int i, count;
+
+	for (i = 0, count = SDL_NumJoysticks (); i < count; i++)
+		if (SDL_IsGameController (i))
+			Con_AddToTabList (va ("%d", i), partial, SDL_GameControllerNameForIndex (i));
 }
 
 void IN_Init (void)
@@ -437,7 +518,9 @@ void IN_Init (void)
 	Cvar_RegisterVariable(&joy_exponent);
 	Cvar_RegisterVariable(&joy_exponent_move);
 	Cvar_RegisterVariable(&joy_swapmovelook);
-	Cvar_RegisterVariable(&joy_enable);
+	Cvar_RegisterVariable(&joy_device);
+	Cvar_SetCallback(&joy_device, Joy_Device_f);
+	Cvar_SetCompletion(&joy_device, Joy_Device_Completion_f);
 
 	Cvar_RegisterVariable(&gyro_enable);
 	Cvar_RegisterVariable(&gyro_mode);
@@ -587,8 +670,6 @@ IN_KeyForControllerButton
 */
 static int IN_KeyForControllerButton(SDL_GameControllerButton button)
 {
-	qboolean remap_dpad = (key_dest != key_game && !M_KeyBinding ());
-
 	switch (button)
 	{
 		case SDL_CONTROLLER_BUTTON_A: return K_ABUTTON;
@@ -601,10 +682,10 @@ static int IN_KeyForControllerButton(SDL_GameControllerButton button)
 		case SDL_CONTROLLER_BUTTON_RIGHTSTICK: return K_RTHUMB;
 		case SDL_CONTROLLER_BUTTON_LEFTSHOULDER: return K_LSHOULDER;
 		case SDL_CONTROLLER_BUTTON_RIGHTSHOULDER: return K_RSHOULDER;
-		case SDL_CONTROLLER_BUTTON_DPAD_UP: return remap_dpad ? K_UPARROW : K_DPAD_UP;
-		case SDL_CONTROLLER_BUTTON_DPAD_DOWN: return remap_dpad ? K_DOWNARROW : K_DPAD_DOWN;
-		case SDL_CONTROLLER_BUTTON_DPAD_LEFT: return remap_dpad ? K_LEFTARROW : K_DPAD_LEFT;
-		case SDL_CONTROLLER_BUTTON_DPAD_RIGHT: return remap_dpad ? K_RIGHTARROW : K_DPAD_RIGHT;
+		case SDL_CONTROLLER_BUTTON_DPAD_UP: return K_DPAD_UP;
+		case SDL_CONTROLLER_BUTTON_DPAD_DOWN: return K_DPAD_DOWN;
+		case SDL_CONTROLLER_BUTTON_DPAD_LEFT: return K_DPAD_LEFT;
+		case SDL_CONTROLLER_BUTTON_DPAD_RIGHT: return K_DPAD_RIGHT;
 		case SDL_CONTROLLER_BUTTON_MISC1: return K_MISC1;
 		case SDL_CONTROLLER_BUTTON_PADDLE1: return K_PADDLE1;
 		case SDL_CONTROLLER_BUTTON_PADDLE2: return K_PADDLE2;
@@ -672,9 +753,6 @@ void IN_Commands (void)
 	int i;
 	const float stickthreshold = 0.9;
 	const float triggerthreshold = joy_deadzone_trigger.value;
-	
-	if (!joy_enable.value)
-		return;
 	
 	if (!joy_active_controller)
 		return;
@@ -761,9 +839,6 @@ void IN_JoyMove (usercmd_t *cmd)
 	joyaxis_t lookRaw, lookDeadzone, lookEased;
 	extern	cvar_t	sv_maxspeed;
 
-	if (!joy_enable.value)
-		return;
-	
 	if (!joy_active_controller)
 		return;
 	
@@ -820,7 +895,7 @@ void IN_JoyMove (usercmd_t *cmd)
 void IN_GyroMove(usercmd_t *cmd)
 {
 	float scale;
-	if (!joy_enable.value || !gyro_enable.value)
+	if (!gyro_enable.value)
 		return;
 
 	if (!joy_active_controller)
@@ -1264,25 +1339,13 @@ void IN_SendKeyEvents (void)
 #endif // SDL_VERSION_ATLEAST(2, 0, 14)
 
 		case SDL_CONTROLLERDEVICEADDED:
-			if (joy_active_instanceid == -1)
-			{
-				SDL_GameController *gamecontroller = SDL_GameControllerOpen(event.cdevice.which);
-				if (gamecontroller == NULL)
-					Con_DPrintf("Couldn't open game controller\n");
-				else
-					IN_UseController(gamecontroller);
-			}
-			else
-				Con_DPrintf("Ignoring SDL_CONTROLLERDEVICEADDED\n");
+			if (!IN_RemapJoystick ())
+				IN_UseController (event.jdevice.which);
 			break;
 		case SDL_CONTROLLERDEVICEREMOVED:
-			if (joy_active_instanceid != -1 && event.cdevice.which == joy_active_instanceid)
-				IN_UseController(NULL);
-			else
-				Con_DPrintf("Ignoring SDL_CONTROLLERDEVICEREMOVED\n");
-			break;
 		case SDL_CONTROLLERDEVICEREMAPPED:
-			Con_DPrintf("Ignoring SDL_CONTROLLERDEVICEREMAPPED\n");
+			if (!IN_RemapJoystick ())
+				IN_SetupJoystick ();
 			break;
 #if SDL_VERSION_ATLEAST (2, 0, 14)
 		case SDL_LOCALECHANGED:

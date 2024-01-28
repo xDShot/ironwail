@@ -103,7 +103,8 @@ typedef enum keycode_t
 	K_MWHEELDOWN,
 
 // SDL2 game controller keys
-	K_LTHUMB,
+	K_GAMEPAD_BEGIN,
+	K_LTHUMB = K_GAMEPAD_BEGIN,
 	K_RTHUMB,
 	K_LSHOULDER,
 	K_RSHOULDER,
@@ -123,8 +124,9 @@ typedef enum keycode_t
 	K_PADDLE3,
 	K_PADDLE4,
 	K_TOUCHPAD,
+	K_GAMEPAD_END,
 
-	K_PAUSE,
+	K_PAUSE = K_GAMEPAD_END,
 
 	NUM_KEYCODES,
 } keycode_t;

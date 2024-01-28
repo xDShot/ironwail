@@ -66,7 +66,6 @@ extern cvar_t joy_invert;
 extern cvar_t joy_exponent;
 extern cvar_t joy_exponent_move;
 extern cvar_t joy_swapmovelook;
-extern cvar_t joy_enable;
 extern cvar_t gyro_enable;
 extern cvar_t gyro_mode;
 extern cvar_t gyro_turning_axis;
@@ -81,6 +80,7 @@ extern qboolean quake64;
 enum m_state_e m_state;
 extern qboolean	keydown[256];
 int m_mousex, m_mousey;
+int m_lastkey = -1; // last key pressed
 qboolean m_ignoremouseframe;
 static int m_left, m_top, m_width, m_height;
 
@@ -3156,9 +3156,6 @@ void M_Calibration_Key (int key)
 //=============================================================================
 /* GAMEPAD MENU */
 
-// Whether or not to show the "Gamepad: on/off" option
-static qboolean m_gamepad_allowdisable = false;
-
 #define MIN_JOY_SENS			60.f
 #define MAX_JOY_SENS			720.f
 #define MIN_JOY_EXPONENT		1.f
@@ -3179,16 +3176,6 @@ M_Menu_Gamepad_f
 */
 void M_Menu_Gamepad_f (void)
 {
-	// - If there's no argument then the command probably came from the console, which means a keyboard
-	//   is likely present, so it's safe to disable the gamepad.
-	// - If there's an argument then it dictates whether or not to show the "Gamepad: on/off" toggle. 
-	// - If the gamepad is already disabled we always show the option so that it can be re-enabled.
-
-	m_gamepad_allowdisable =
-		Cmd_Argc () < 2 ||
-		atof (Cmd_Argv (1)) != 0.f ||
-		!joy_enable.value;
-
 	M_Options_Init (m_gamepad);
 }
 
@@ -3258,27 +3245,28 @@ void M_Menu_Gamepad_f (void)
 	def (VID_OPT_SHOWFPS,		"Show FPS")			\
 ////////////////////////////////////////////////////
 #define GPAD_OPTIONS_LIST(def)						\
-	def(GPAD_OPT_ENABLE,		"Gamepad")			\
+	def(GPAD_OPT_DEVICE,		"Gamepad")			\
 													\
 	def(GPAD_OPT_SPACE1,		"")					\
+	def(GPAD_OPT_SPACE2,		"")					\
 													\
 	def(GPAD_OPT_SENSX,			"Yaw Speed")		\
 	def(GPAD_OPT_SENSY,			"Pitch Speed")		\
 	def(GPAD_OPT_INVERT,		"Invert Pitch")		\
 	def(GPAD_OPT_SWAP_MOVELOOK,	"Look Stick")		\
 													\
-	def(GPAD_OPT_SPACE2,		"")					\
+	def(GPAD_OPT_SPACE3,		"")					\
 													\
 	def(GPAD_OPT_EXPONENT_LOOK,	"Look Accel")		\
 	def(GPAD_OPT_EXPONENT_MOVE,	"Move Accel")		\
 													\
-	def(GPAD_OPT_SPACE3,		"")					\
+	def(GPAD_OPT_SPACE4,		"")					\
 													\
 	def(GPAD_OPT_DEADZONE_LOOK,	"Look Deadzone")	\
 	def(GPAD_OPT_DEADZONE_MOVE,	"Move Deadzone")	\
 	def(GPAD_OPT_DEADZONE_TRIG,	"Trigger Thresh")	\
 													\
-	def(GPAD_OPT_SPACE4,		"")					\
+	def(GPAD_OPT_SPACE5,		"")					\
 													\
 	def(GPAD_OPT_GYROENABLE,	"Gyro")				\
 	def(GPAD_OPT_GYROMODE,		"Gyro Button")		\
@@ -3406,7 +3394,7 @@ static qboolean M_Options_IsEnabled (int index)
 	index += optionsmenu.first_item;
 	if ((unsigned int) index >= countof (options_names))
 		return false;
-	if (index > GPAD_OPTIONS_FIRST && index < GPAD_OPTIONS_FIRST + GPAD_OPTIONS_ITEMS && !joy_enable.value)
+	if (index > GPAD_OPTIONS_FIRST && index < GPAD_OPTIONS_FIRST + GPAD_OPTIONS_ITEMS && !IN_HasGamepad ())
 		return false;
 	if (M_Options_IsGyroId (index))
 	{
@@ -3470,15 +3458,6 @@ void M_Options_Init (enum m_state_e state)
 	{
 		optionsmenu.first_item = GPAD_OPTIONS_FIRST;
 		optionsmenu.list.numitems = GPAD_OPTIONS_ITEMS;
-		if (!IN_HasGyro ())
-			optionsmenu.list.numitems -= GYRO_OPTIONS_ITEMS - 1; // remove all but the first gyro item
-		if (!m_gamepad_allowdisable)
-		{
-			// Hide gamepad toggle option and a potential separator after it
-			int skip = 1 + !options_names[GPAD_OPTIONS_FIRST + 1][0];
-			optionsmenu.first_item += skip;
-			optionsmenu.list.numitems -= skip;
-		}
 		optionsmenu.last_cursor = &optionsmenu.gamepad_cursor;
 		optionsmenu.subtitle = "Gamepad Options";
 	}
@@ -3750,8 +3729,10 @@ void M_AdjustSliders (int dir)
 	//
 	// Gamepad Options
 	//
-	case GPAD_OPT_ENABLE:
-		Cvar_SetValueQuick (&joy_enable, !joy_enable.value);
+	case GPAD_OPT_DEVICE:
+		// Skip "off" option when using a gamepad to avoid getting into an awkward state
+		// on systems where the gamepad is the primary input method, such as the Steam Deck.
+		IN_UseNextGamepad (dir, m_lastkey < (int)K_GAMEPAD_BEGIN || m_lastkey >= (int)K_GAMEPAD_END);
 		break;
 	case GPAD_OPT_SENSX:
 		Cvar_SetValueQuick (&joy_sensitivity_yaw, CLAMP (MIN_JOY_SENS, joy_sensitivity_yaw.value + dir * 10.f, MAX_JOY_SENS));
@@ -3976,6 +3957,7 @@ qboolean M_SliderClick (int cx, int cy)
 static void M_Options_DrawItem (int y, int item)
 {
 	char		buf[256];
+	const char	*str;
 	int			x = OPTIONS_MIDPOS;
 	float		r, l;
 
@@ -4183,8 +4165,11 @@ static void M_Options_DrawItem (int y, int item)
 	//
 	// Gamepad Options
 	//
-	case GPAD_OPT_ENABLE:
-		M_DrawCheckbox (x, y, joy_enable.value);
+	case GPAD_OPT_DEVICE:
+		str = IN_GetGamepadName ();
+		if (!str)
+			str = "Off";
+		M_PrintWordWrap (x, y, str, 320 - x, 16, true); // note: hijacking the empty line below this option
 		break;
 	case GPAD_OPT_SENSX:
 		r = (joy_sensitivity_yaw.value - MIN_JOY_SENS) / (MAX_JOY_SENS - MIN_JOY_SENS);
@@ -4382,10 +4367,6 @@ void M_Options_Key (int k)
 			M_Menu_Video_f ();
 			break;
 		case OPT_GAMEPAD:
-			// Only show the gamepad on/off toggle if we've entered the menu via mouse or keyboard.
-			// We do this to avoid getting into an awkward state on devices where the gamepad is the primary input method,
-			// such as the Steam Deck.
-			Cbuf_AddText (va ("menu_gamepad %d\n", k != K_ABUTTON));
 			M_Menu_Gamepad_f ();
 			break;
 
@@ -6663,6 +6644,20 @@ void M_Keydown (int key)
 {
 	if (!bind_grab && !ui_mouse.value && M_IsMouseKey (key))
 		return;
+
+	m_lastkey = key;
+	if (!bind_grab)
+	{
+		switch (key)
+		{
+			case K_DPAD_UP:		key = K_UPARROW; break;
+			case K_DPAD_DOWN:	key = K_DOWNARROW; break;
+			case K_DPAD_LEFT:	key = K_LEFTARROW; break;
+			case K_DPAD_RIGHT:	key = K_RIGHTARROW; break;
+			default:
+				break;
+		}
+	}
 
 	switch (m_state)
 	{

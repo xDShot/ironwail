@@ -364,6 +364,7 @@ void Key_Console (int key)
 		return;
 
 	case K_LEFTARROW:
+	case K_DPAD_LEFT:
 		if (key_linepos > 1)
 		{
 			if (keydown[K_CTRL])
@@ -376,6 +377,7 @@ void Key_Console (int key)
 		return;
 
 	case K_RIGHTARROW:
+	case K_DPAD_RIGHT:
 		len = strlen(workline);
 		if ((int)len == key_linepos)
 		{
@@ -399,6 +401,7 @@ void Key_Console (int key)
 		return;
 
 	case K_UPARROW:
+	case K_DPAD_UP:
 		if (history_line == edit_line)
 			Q_strcpy(current, workline);
 
@@ -422,6 +425,7 @@ void Key_Console (int key)
 		return;
 
 	case K_DOWNARROW:
+	case K_DPAD_DOWN:
 		if (history_line == edit_line)
 			return;
 
@@ -915,6 +919,10 @@ void Key_Init (void)
 	consolekeys[K_DOWNARROW] = true;
 	consolekeys[K_LEFTARROW] = true;
 	consolekeys[K_RIGHTARROW] = true;
+	consolekeys[K_DPAD_UP] = true;
+	consolekeys[K_DPAD_DOWN] = true;
+	consolekeys[K_DPAD_LEFT] = true;
+	consolekeys[K_DPAD_RIGHT] = true;
 	consolekeys[K_CTRL] = true;
 	consolekeys[K_SHIFT] = true;
 	consolekeys[K_INS] = true;
