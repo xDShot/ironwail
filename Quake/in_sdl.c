@@ -1311,7 +1311,7 @@ void IN_SendKeyEvents (void)
 
 #if SDL_VERSION_ATLEAST(2, 0, 14)
 		case SDL_CONTROLLERSENSORUPDATE:
-			if (event.csensor.sensor == SDL_SENSOR_GYRO)
+			if (event.csensor.sensor == SDL_SENSOR_GYRO && event.csensor.which == joy_active_instanceid)
 			{
 				float prev_yaw = gyro_yaw;
 				float prev_pitch = gyro_pitch;
