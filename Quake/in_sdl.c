@@ -288,6 +288,48 @@ void IN_DeactivateForMenu (void)
 	IN_Deactivate(modestate == MS_WINDOWED || ui_mouse.value);
 }
 
+#if SDL_VERSION_ATLEAST(2, 0, 14)
+void IN_UpdateLED (void)
+{
+	if (SDL_GameControllerHasLED (joy_active_controller))
+	{
+		const uint8_t default_led[3] = { DEFAULT_LED_R, DEFAULT_LED_G, DEFAULT_LED_B };
+
+		#define BLEND_COLOR(color, base_color, add_color, add_scale) \
+		if ( add_color >= base_color )  { color = base_color + ( add_color - base_color ) * add_scale; } \
+		else { color = base_color - ( base_color - add_color ) * add_scale; }
+		
+		// Blend flashes (v_blend from view.c) on top of current color
+		uint8_t v_blend_led[3] = { v_blend[0] * 255, v_blend[1] * 255, v_blend[2] * 255 };
+		float v_blend_scale = pow( sin( 0.5 * v_blend[3] * M_PI ), 0.5);
+		
+		BLEND_COLOR( joy_led[0], default_led[0], v_blend_led[0], v_blend_scale );
+		BLEND_COLOR( joy_led[1], default_led[1], v_blend_led[1], v_blend_scale );
+		BLEND_COLOR( joy_led[2], default_led[2], v_blend_led[2], v_blend_scale );
+
+		// Get maximum LED color brightness
+		vec3_t joy_led_v = { joy_led[0], joy_led[1], joy_led[2] };
+		VectorNormalize(joy_led_v);
+		VectorScale(joy_led_v, 255, joy_led_v);
+
+		uint8_t punch_led[3] = { joy_led_v[0], joy_led_v[1], joy_led_v[2] };
+		
+		float punchblend = (cl.time - cl.punchtime);// / 0.1f;
+
+		if (punchblend < 0.0f) punchblend = 0.0f;
+		if (punchblend > 1.0f) punchblend = 1.0f;
+		
+		punchblend = (1 - punchblend);// * 0.2;
+		
+		BLEND_COLOR( joy_led[0], joy_led[0], punch_led[0], punchblend );
+		BLEND_COLOR( joy_led[1], joy_led[1], punch_led[1], punchblend );
+		BLEND_COLOR( joy_led[2], joy_led[2], punch_led[2], punchblend );
+
+		SDL_GameControllerSetLED (joy_active_controller, joy_led[0], joy_led[1], joy_led[2]);
+    }
+#endif // SDL_VERSION_ATLEAST(2, 0, 14)
+}
+
 static qboolean IN_UseController (int device_index)
 {
 	SDL_GameController *gamecontroller;
@@ -340,10 +382,7 @@ static qboolean IN_UseController (int device_index)
 	q_strlcpy (joy_active_name, controllername, sizeof (joy_active_name));
 
 #if SDL_VERSION_ATLEAST(2, 0, 14)
-	if (SDL_GameControllerHasLED (joy_active_controller))
-	{
-		SDL_GameControllerSetLED (joy_active_controller, joy_led[0], joy_led[1], joy_led[2]);
-	}
+	IN_UpdateLED ();
 	if (SDL_GameControllerHasSensor (joy_active_controller, SDL_SENSOR_GYRO)
 		&& !SDL_GameControllerSetSensorEnabled (joy_active_controller, SDL_SENSOR_GYRO, SDL_TRUE))
 	{
@@ -1370,44 +1409,7 @@ void IN_SendKeyEvents (void)
 	}
 
 	IN_UpdateGyroCalibration ();
-
 #if SDL_VERSION_ATLEAST(2, 0, 14)
-	if (SDL_GameControllerHasLED (joy_active_controller))
-	{
-		const uint8_t default_led[3] = { DEFAULT_LED_R, DEFAULT_LED_G, DEFAULT_LED_B };
-
-		#define BLEND_COLOR(color, base_color, add_color, add_scale) \
-		if ( add_color >= base_color )  { color = base_color + ( add_color - base_color ) * add_scale; } \
-		else { color = base_color - ( base_color - add_color ) * add_scale; }
-		
-		// Blend flashes (v_blend from view.c) on top of current color
-		uint8_t v_blend_led[3] = { v_blend[0] * 255, v_blend[1] * 255, v_blend[2] * 255 };
-		float v_blend_scale = pow( sin( 0.5 * v_blend[3] * M_PI ), 0.5);
-		
-		BLEND_COLOR( joy_led[0], default_led[0], v_blend_led[0], v_blend_scale );
-		BLEND_COLOR( joy_led[1], default_led[1], v_blend_led[1], v_blend_scale );
-		BLEND_COLOR( joy_led[2], default_led[2], v_blend_led[2], v_blend_scale );
-
-		// Get maximum LED color brightness
-		vec3_t joy_led_v = { joy_led[0], joy_led[1], joy_led[2] };
-		VectorNormalize(joy_led_v);
-		VectorScale(joy_led_v, 255, joy_led_v);
-
-		uint8_t punch_led[3] = { joy_led_v[0], joy_led_v[1], joy_led_v[2] };
-		
-		float punchblend = (cl.time - cl.punchtime);// / 0.1f;
-
-		if (punchblend < 0.0f) punchblend = 0.0f;
-		if (punchblend > 1.0f) punchblend = 1.0f;
-		
-		punchblend = (1 - punchblend);// * 0.2;
-		
-		BLEND_COLOR( joy_led[0], joy_led[0], punch_led[0], punchblend );
-		BLEND_COLOR( joy_led[1], joy_led[1], punch_led[1], punchblend );
-		BLEND_COLOR( joy_led[2], joy_led[2], punch_led[2], punchblend );
-
-		SDL_GameControllerSetLED (joy_active_controller, joy_led[0], joy_led[1], joy_led[2]);
-    }
+	IN_UpdateLED ();
 #endif // SDL_VERSION_ATLEAST(2, 0, 14)
 }
-
