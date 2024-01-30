@@ -110,7 +110,7 @@ static qboolean gyro_button_pressed = false;
 #define DEFAULT_LED_R 80
 #define DEFAULT_LED_G 20
 #define DEFAULT_LED_B 0
-static uint8_t joy_led[3] = { DEFAULT_LED_R, DEFAULT_LED_G, DEFAULT_LED_B };
+static vec3_t joy_led;
 
 static int SDLCALL IN_FilterMouseEvents (const SDL_Event *event)
 {
@@ -293,27 +293,27 @@ void IN_UpdateLED (void)
 {
 	if (SDL_GameControllerHasLED (joy_active_controller))
 	{
-		const uint8_t default_led[3] = { DEFAULT_LED_R, DEFAULT_LED_G, DEFAULT_LED_B };
+		joy_led[0] = DEFAULT_LED_R / 255.0;
+		joy_led[1] = DEFAULT_LED_G / 255.0;
+		joy_led[2] = DEFAULT_LED_B / 255.0;
 
 		#define BLEND_COLOR(color, base_color, add_color, add_scale) \
-		if ( add_color >= base_color )  { color = base_color + ( add_color - base_color ) * add_scale; } \
-		else { color = base_color - ( base_color - add_color ) * add_scale; }
+		color = base_color + ( add_color - base_color ) * add_scale;
 		
 		// Blend flashes (v_blend from view.c) on top of current color
-		uint8_t v_blend_led[3] = { v_blend[0] * 255, v_blend[1] * 255, v_blend[2] * 255 };
+		extern float v_blend[4];
+		vec3_t v_blend_led = { v_blend[0], v_blend[1], v_blend[2] };
 		float v_blend_scale = pow( sin( 0.5 * v_blend[3] * M_PI ), 0.5);
-		
-		BLEND_COLOR( joy_led[0], default_led[0], v_blend_led[0], v_blend_scale );
-		BLEND_COLOR( joy_led[1], default_led[1], v_blend_led[1], v_blend_scale );
-		BLEND_COLOR( joy_led[2], default_led[2], v_blend_led[2], v_blend_scale );
+		VectorScale(v_blend_led, v_blend_scale, v_blend_led);
+		BLEND_COLOR( joy_led[0], joy_led[0], v_blend_led[0], v_blend_scale );
+		BLEND_COLOR( joy_led[1], joy_led[1], v_blend_led[1], v_blend_scale );
+		BLEND_COLOR( joy_led[2], joy_led[2], v_blend_led[2], v_blend_scale );
 
-		// Get maximum LED color brightness
-		vec3_t joy_led_v = { joy_led[0], joy_led[1], joy_led[2] };
-		VectorNormalize(joy_led_v);
-		VectorScale(joy_led_v, 255, joy_led_v);
+		// Blend flash from view punches (gunfire)
+		vec3_t punch_led;
+		_VectorCopy(joy_led, punch_led);
+		VectorNormalize(punch_led); // Get maximum LED color brightness
 
-		uint8_t punch_led[3] = { joy_led_v[0], joy_led_v[1], joy_led_v[2] };
-		
 		float punchblend = (cl.time - cl.punchtime);// / 0.1f;
 
 		if (punchblend < 0.0f) punchblend = 0.0f;
@@ -321,11 +321,16 @@ void IN_UpdateLED (void)
 		
 		punchblend = (1 - punchblend);// * 0.2;
 		
+		VectorScale(punch_led, punchblend, punch_led);
 		BLEND_COLOR( joy_led[0], joy_led[0], punch_led[0], punchblend );
 		BLEND_COLOR( joy_led[1], joy_led[1], punch_led[1], punchblend );
 		BLEND_COLOR( joy_led[2], joy_led[2], punch_led[2], punchblend );
 
-		SDL_GameControllerSetLED (joy_active_controller, joy_led[0], joy_led[1], joy_led[2]);
+		CLAMP(0, joy_led[0], 1);
+		CLAMP(0, joy_led[1], 1);
+		CLAMP(0, joy_led[2], 1);
+
+		SDL_GameControllerSetLED (joy_active_controller, joy_led[0] * 255, joy_led[1] * 255, joy_led[2] * 255);
     }
 #endif // SDL_VERSION_ATLEAST(2, 0, 14)
 }
