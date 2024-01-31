@@ -78,6 +78,10 @@ cvar_t gyro_calibration_z = {"gyro_calibration_z", "0", CVAR_ARCHIVE};
 
 cvar_t gyro_noise_thresh = {"gyro_noise_thresh", "1.5", CVAR_ARCHIVE};
 
+cvar_t joy_led_r = {"joy_led_r", "0.3", CVAR_ARCHIVE};
+cvar_t joy_led_g = {"joy_led_g", "0.07", CVAR_ARCHIVE};
+cvar_t joy_led_b = {"joy_led_b", "0.0", CVAR_ARCHIVE};
+
 static SDL_JoystickID joy_active_instanceid = -1;
 static int joy_active_device = -1;
 static SDL_GameController *joy_active_controller = NULL;
@@ -106,10 +110,6 @@ static unsigned int updates_countdown = 0;
 static qboolean gyro_present = false;
 static qboolean gyro_button_pressed = false;
 
-// orange LED, seemed fitting for Quake
-#define DEFAULT_LED_R 80
-#define DEFAULT_LED_G 20
-#define DEFAULT_LED_B 0
 static vec3_t joy_led;
 
 static int SDLCALL IN_FilterMouseEvents (const SDL_Event *event)
@@ -293,9 +293,9 @@ void IN_UpdateLED (void)
 {
 	if (SDL_GameControllerHasLED (joy_active_controller))
 	{
-		joy_led[0] = DEFAULT_LED_R / 255.0;
-		joy_led[1] = DEFAULT_LED_G / 255.0;
-		joy_led[2] = DEFAULT_LED_B / 255.0;
+		joy_led[0] = CLAMP (0, joy_led_r.value, 1);
+		joy_led[1] = CLAMP (0, joy_led_g.value, 1);
+		joy_led[2] = CLAMP (0, joy_led_b.value, 1);
 
 		#define BLEND_COLOR(color, base_color, add_color, add_scale) \
 		color = base_color + ( add_color - base_color ) * add_scale;
@@ -303,7 +303,7 @@ void IN_UpdateLED (void)
 		// Blend flashes (v_blend from view.c) on top of current color
 		extern float v_blend[4];
 		vec3_t v_blend_led = { v_blend[0], v_blend[1], v_blend[2] };
-		float v_blend_scale = pow( sin( 0.5 * v_blend[3] * M_PI ), 0.5);
+		float v_blend_scale = pow( sin( v_blend[3] * M_PI ), 0.5);
 		VectorScale(v_blend_led, v_blend_scale, v_blend_led);
 		BLEND_COLOR( joy_led[0], joy_led[0], v_blend_led[0], v_blend_scale );
 		BLEND_COLOR( joy_led[1], joy_led[1], v_blend_led[1], v_blend_scale );
@@ -585,6 +585,10 @@ void IN_Init (void)
 
 	Cmd_AddCommand ("+gyroaction", IN_GyroActionDown);
 	Cmd_AddCommand ("-gyroaction", IN_GyroActionUp);
+
+	Cvar_RegisterVariable(&joy_led_r);
+	Cvar_RegisterVariable(&joy_led_g);
+	Cvar_RegisterVariable(&joy_led_b);
 
 	IN_Activate();
 	IN_StartupJoystick();
