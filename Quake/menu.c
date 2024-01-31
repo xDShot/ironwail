@@ -72,6 +72,9 @@ extern cvar_t gyro_turning_axis;
 extern cvar_t gyro_pitchsensitivity;
 extern cvar_t gyro_yawsensitivity;
 extern cvar_t gyro_noise_thresh;
+extern cvar_t joy_led_r;
+extern cvar_t joy_led_g;
+extern cvar_t joy_led_b;
 
 extern char crosshair_char;
 
@@ -3275,6 +3278,12 @@ void M_Menu_Gamepad_f (void)
 	def(GPAD_OPT_GYROSENSY,		"Gyro Pitch Speed")	\
 	def(GPAD_OPT_GYRONOISE,		"Gyro Noise Thresh")\
 	def(GPAD_OPT_CALIBRATE,		"Calibrate")		\
+													\
+	def(GPAD_OPT_SPACE6,		"")					\
+													\
+	def(GPAD_OPT_LEDR,			"LED Red")			\
+	def(GPAD_OPT_LEDG,			"LED Green")		\
+	def(GPAD_OPT_LEDB,			"LED Blue")			\
 ////////////////////////////////////////////////////
 
 enum
@@ -3295,12 +3304,12 @@ enum
 	#undef COUNT_OPTION
 
 	GYRO_OPTIONS_FIRST		= GPAD_OPT_GYROENABLE,
-	GYRO_OPTIONS_ITEMS		= GPAD_OPTIONS_FIRST + GPAD_OPTIONS_ITEMS - GYRO_OPTIONS_FIRST,
+	GYRO_OPTIONS_LAST		= GPAD_OPT_SPACE6,
 };
 
 static qboolean M_Options_IsGyroId (int id)
 {
-	return (unsigned int)(id - GYRO_OPTIONS_FIRST) < GYRO_OPTIONS_ITEMS;
+	return (unsigned int)(id - GYRO_OPTIONS_FIRST) < (GYRO_OPTIONS_LAST - GYRO_OPTIONS_FIRST);
 }
 
 static const char *const options_names[] =
@@ -3400,7 +3409,7 @@ static qboolean M_Options_IsEnabled (int index)
 	{
 		if (!IN_HasGyro ())
 			return false;
-		if (!gyro_enable.value && index > GYRO_OPTIONS_FIRST)
+		if (!gyro_enable.value && index > GYRO_OPTIONS_FIRST && index < GYRO_OPTIONS_LAST)
 			return false;
 	}
 	return true;
@@ -3782,6 +3791,15 @@ void M_AdjustSliders (int dir)
 	case GPAD_OPT_CALIBRATE:
 		M_Menu_Calibration_f ();
 		break;
+	case GPAD_OPT_LEDR:
+		Cvar_SetValueQuick (&joy_led_r, CLAMP (0.f, joy_led_r.value + dir * .05f, 1.f));
+		break;
+	case GPAD_OPT_LEDG:
+		Cvar_SetValueQuick (&joy_led_g, CLAMP (0.f, joy_led_g.value + dir * .05f, 1.f));
+		break;
+	case GPAD_OPT_LEDB:
+		Cvar_SetValueQuick (&joy_led_b, CLAMP (0.f, joy_led_b.value + dir * .05f, 1.f));
+		break;
 
 	default:
 		break;
@@ -3909,6 +3927,18 @@ qboolean M_SetSliderValue (int option, float f)
 	case GPAD_OPT_GYRONOISE:
 		f = LERP (MIN_GYRO_NOISE_THRESH, MAX_GYRO_NOISE_THRESH, f);
 		Cvar_SetValueQuick (&gyro_noise_thresh, f);
+		return true;
+	case GPAD_OPT_LEDR:
+		f = LERP (0.0, 1.0, f);
+		Cvar_SetValueQuick (&joy_led_r, f);
+		return true;
+	case GPAD_OPT_LEDG:
+		f = LERP (0.0, 1.0, f);
+		Cvar_SetValueQuick (&joy_led_g, f);
+		return true;
+	case GPAD_OPT_LEDB:
+		f = LERP (0.0, 1.0, f);
+		Cvar_SetValueQuick (&joy_led_b, f);
 		return true;
 	default:
 		return false;
@@ -4233,6 +4263,18 @@ static void M_Options_DrawItem (int y, int item)
 		break;
 	case GPAD_OPT_GYRONOISE:
 		r = (gyro_noise_thresh.value - MIN_GYRO_NOISE_THRESH) / (MAX_GYRO_NOISE_THRESH - MIN_GYRO_NOISE_THRESH);
+		M_DrawSlider (x, y, r);
+		break;
+	case GPAD_OPT_LEDR:
+		r = joy_led_r.value;
+		M_DrawSlider (x, y, r);
+		break;
+	case GPAD_OPT_LEDG:
+		r = joy_led_g.value;
+		M_DrawSlider (x, y, r);
+		break;
+	case GPAD_OPT_LEDB:
+		r = joy_led_b.value;
 		M_DrawSlider (x, y, r);
 		break;
 
