@@ -114,6 +114,18 @@ static qboolean gyro_button_pressed = false;
 static qboolean led_present = false;
 static vec3_t joy_led;
 
+static qboolean ds_triggers_present = false;
+// https://controllers.fandom.com/wiki/Sony_DualSense
+// https://gist.github.com/Nielk1/6d54cc2c00d2201ccb8c2720ad7538db
+// https://github.com/nowrep/dualsensectl
+enum ds_trigger_mode {
+	tm_off = 0x05,
+	tm_feedback = 0x21,
+	tm_weapon = 0x25,
+	tm_vibration = 0x26,
+};
+static uint8_t ds_effects_state[47] = {0};
+
 static int SDLCALL IN_FilterMouseEvents (const SDL_Event *event)
 {
 	switch (event->type)
@@ -340,6 +352,30 @@ void IN_UpdateLED (void)
 #endif // SDL_VERSION_ATLEAST(2, 0, 14)
 }
 
+void IN_SetupDSTriggers (void)
+{
+	uint8_t mode = tm_weapon;
+	uint8_t start = CLAMP (2, 0, 7);
+	uint8_t end = CLAMP (start + 1, 8 * joy_deadzone_trigger.value, 8);
+	uint8_t strength = 8;
+	uint16_t startandstop = (uint16_t)((1 << start) | (1 << end));
+	ds_effects_state[0] = (1<<2) | (1<<3); // Enable triggers effects setting
+	#define RT_BYTES 10
+	ds_effects_state[RT_BYTES +  0] = mode;
+	ds_effects_state[RT_BYTES +  1] = (uint8_t)((startandstop >> 0) & 0xff);
+	ds_effects_state[RT_BYTES +  2] = (uint8_t)((startandstop >> 8) & 0xff);
+	ds_effects_state[RT_BYTES +  3] = strength-1;
+	ds_effects_state[RT_BYTES +  4] = 0;
+	ds_effects_state[RT_BYTES +  5] = 0;
+	ds_effects_state[RT_BYTES +  6] = 0;
+	ds_effects_state[RT_BYTES +  7] = 0;
+	ds_effects_state[RT_BYTES +  8] = 0;
+	ds_effects_state[RT_BYTES +  9] = 0;
+	ds_effects_state[RT_BYTES + 10] = 0;
+	#define LT_BYTES 21
+	SDL_GameControllerSendEffect (joy_active_controller, ds_effects_state, sizeof(ds_effects_state) / sizeof(ds_effects_state[0]));
+}
+
 static qboolean IN_UseController (int device_index)
 {
 	SDL_GameController *gamecontroller;
@@ -365,6 +401,7 @@ static qboolean IN_UseController (int device_index)
 		gyro_present = false;
 		gyro_yaw = gyro_pitch = 0.f;
 		led_present = false;
+		ds_triggers_present = false;
 	}
 
 	if (device_index == -1)
@@ -411,6 +448,13 @@ static qboolean IN_UseController (int device_index)
 	{
 		Con_Printf ("Gyro sensor not found\n");
 	}
+#if SDL_VERSION_ATLEAST(2, 0, 16)
+	if (SDL_GameControllerGetType (joy_active_controller) == SDL_CONTROLLER_TYPE_PS5 )
+	{
+		ds_triggers_present = true;
+		IN_SetupDSTriggers ();
+	}
+#endif // SDL_VERSION_ATLEAST(2, 0, 16)
 #endif // SDL_VERSION_ATLEAST(2, 0, 14)
 
 	return true;
@@ -1267,6 +1311,13 @@ qboolean IN_HasLED (void)
 {
 	return led_present;
 }
+
+qboolean IN_HasAdaptiveTriggers (void)
+{
+	return ds_triggers_present;
+}
+
+
 
 qboolean IN_IsCalibratingGyro (void)
 {
