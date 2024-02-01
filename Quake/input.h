@@ -51,6 +51,8 @@ qboolean IN_HasGyro (void);
 void IN_StartGyroCalibration (void);
 qboolean IN_IsCalibratingGyro (void);
 
+qboolean IN_HasLED (void);
+
 qboolean IN_HasGamepad (void);
 const char *IN_GetGamepadName (void);
 void IN_UseNextGamepad (int dir, qboolean allow_disable);

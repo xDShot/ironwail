@@ -78,6 +78,7 @@ cvar_t gyro_calibration_z = {"gyro_calibration_z", "0", CVAR_ARCHIVE};
 
 cvar_t gyro_noise_thresh = {"gyro_noise_thresh", "1.5", CVAR_ARCHIVE};
 
+cvar_t joy_led_enable = {"joy_led_enable", "1", CVAR_ARCHIVE};
 cvar_t joy_led_r = {"joy_led_r", "0.3", CVAR_ARCHIVE};
 cvar_t joy_led_g = {"joy_led_g", "0.07", CVAR_ARCHIVE};
 cvar_t joy_led_b = {"joy_led_b", "0.0", CVAR_ARCHIVE};
@@ -110,6 +111,7 @@ static unsigned int updates_countdown = 0;
 static qboolean gyro_present = false;
 static qboolean gyro_button_pressed = false;
 
+static qboolean led_present = false;
 static vec3_t joy_led;
 
 static int SDLCALL IN_FilterMouseEvents (const SDL_Event *event)
@@ -291,7 +293,10 @@ void IN_DeactivateForMenu (void)
 #if SDL_VERSION_ATLEAST(2, 0, 14)
 void IN_UpdateLED (void)
 {
-	if (SDL_GameControllerHasLED (joy_active_controller))
+	if (!joy_led_enable.value)
+		return;
+
+	if (IN_HasLED ())
 	{
 		joy_led[0] = CLAMP (0, joy_led_r.value, 1);
 		joy_led[1] = CLAMP (0, joy_led_g.value, 1);
@@ -359,6 +364,7 @@ static qboolean IN_UseController (int device_index)
 		Cvar_SetValueQuick (&joy_device, -1);
 		gyro_present = false;
 		gyro_yaw = gyro_pitch = 0.f;
+		led_present = false;
 	}
 
 	if (device_index == -1)
@@ -387,7 +393,10 @@ static qboolean IN_UseController (int device_index)
 	q_strlcpy (joy_active_name, controllername, sizeof (joy_active_name));
 
 #if SDL_VERSION_ATLEAST(2, 0, 14)
-	IN_UpdateLED ();
+	if (SDL_GameControllerHasLED (joy_active_controller))
+	{
+		led_present = true;
+	}
 	if (SDL_GameControllerHasSensor (joy_active_controller, SDL_SENSOR_GYRO)
 		&& !SDL_GameControllerSetSensorEnabled (joy_active_controller, SDL_SENSOR_GYRO, SDL_TRUE))
 	{
@@ -586,6 +595,7 @@ void IN_Init (void)
 	Cmd_AddCommand ("+gyroaction", IN_GyroActionDown);
 	Cmd_AddCommand ("-gyroaction", IN_GyroActionUp);
 
+	Cvar_RegisterVariable(&joy_led_enable);
 	Cvar_RegisterVariable(&joy_led_r);
 	Cvar_RegisterVariable(&joy_led_g);
 	Cvar_RegisterVariable(&joy_led_b);
@@ -1251,6 +1261,11 @@ static void IN_UpdateGyroCalibration (void)
 qboolean IN_HasGyro (void)
 {
 	return gyro_present;
+}
+
+qboolean IN_HasLED (void)
+{
+	return led_present;
 }
 
 qboolean IN_IsCalibratingGyro (void)

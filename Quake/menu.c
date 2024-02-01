@@ -72,6 +72,7 @@ extern cvar_t gyro_turning_axis;
 extern cvar_t gyro_pitchsensitivity;
 extern cvar_t gyro_yawsensitivity;
 extern cvar_t gyro_noise_thresh;
+extern cvar_t joy_led_enable;
 extern cvar_t joy_led_r;
 extern cvar_t joy_led_g;
 extern cvar_t joy_led_b;
@@ -3281,6 +3282,7 @@ void M_Menu_Gamepad_f (void)
 													\
 	def(GPAD_OPT_SPACE6,		"")					\
 													\
+	def(GPAD_OPT_LEDENABLE,		"LED")				\
 	def(GPAD_OPT_LEDR,			"LED Red")			\
 	def(GPAD_OPT_LEDG,			"LED Green")		\
 	def(GPAD_OPT_LEDB,			"LED Blue")			\
@@ -3305,11 +3307,18 @@ enum
 
 	GYRO_OPTIONS_FIRST		= GPAD_OPT_GYROENABLE,
 	GYRO_OPTIONS_LAST		= GPAD_OPT_SPACE6,
+
+	LED_OPTIONS_FIRST		= GPAD_OPT_LEDENABLE,
+	LED_OPTIONS_LAST		= GPAD_OPT_LEDB,
 };
 
 static qboolean M_Options_IsGyroId (int id)
 {
 	return (unsigned int)(id - GYRO_OPTIONS_FIRST) < (GYRO_OPTIONS_LAST - GYRO_OPTIONS_FIRST);
+}
+static qboolean M_Options_IsLEDId (int id)
+{
+	return (unsigned int)(id - LED_OPTIONS_FIRST) < (LED_OPTIONS_LAST + 1 - LED_OPTIONS_FIRST);
 }
 
 static const char *const options_names[] =
@@ -3410,6 +3419,13 @@ static qboolean M_Options_IsEnabled (int index)
 		if (!IN_HasGyro ())
 			return false;
 		if (!gyro_enable.value && index > GYRO_OPTIONS_FIRST && index < GYRO_OPTIONS_LAST)
+			return false;
+	}
+	if (M_Options_IsLEDId (index))
+	{
+		if (!IN_HasLED ())
+			return false;
+		if (!joy_led_enable.value && index > LED_OPTIONS_FIRST && index <= LED_OPTIONS_LAST)
 			return false;
 	}
 	return true;
@@ -3790,6 +3806,9 @@ void M_AdjustSliders (int dir)
 		break;
 	case GPAD_OPT_CALIBRATE:
 		M_Menu_Calibration_f ();
+		break;
+	case GPAD_OPT_LEDENABLE:
+		Cvar_SetValueQuick (&joy_led_enable, !joy_led_enable.value);
 		break;
 	case GPAD_OPT_LEDR:
 		Cvar_SetValueQuick (&joy_led_r, CLAMP (0.f, joy_led_r.value + dir * .05f, 1.f));
@@ -4264,6 +4283,12 @@ static void M_Options_DrawItem (int y, int item)
 	case GPAD_OPT_GYRONOISE:
 		r = (gyro_noise_thresh.value - MIN_GYRO_NOISE_THRESH) / (MAX_GYRO_NOISE_THRESH - MIN_GYRO_NOISE_THRESH);
 		M_DrawSlider (x, y, r);
+		break;
+	case GPAD_OPT_LEDENABLE:
+		if (!IN_HasLED ())
+			M_Print (x, y, "Unavailable");
+		else
+			M_DrawCheckbox (x, y, joy_led_enable.value);
 		break;
 	case GPAD_OPT_LEDR:
 		r = joy_led_r.value;
