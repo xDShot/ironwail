@@ -83,6 +83,30 @@ cvar_t joy_led_r = {"joy_led_r", "0.3", CVAR_ARCHIVE};
 cvar_t joy_led_g = {"joy_led_g", "0.07", CVAR_ARCHIVE};
 cvar_t joy_led_b = {"joy_led_b", "0.0", CVAR_ARCHIVE};
 
+cvar_t joy_ds_rt_mode              = {"joy_ds_rt_mode", "0", CVAR_ARCHIVE};
+cvar_t joy_ds_rt_startpos          = {"joy_ds_rt_startpos", "0", CVAR_ARCHIVE};
+cvar_t joy_ds_rt_endpos            = {"joy_ds_rt_endpos", "0", CVAR_ARCHIVE};
+cvar_t joy_ds_rt_strength          = {"joy_ds_rt_strength", "0", CVAR_ARCHIVE};
+cvar_t joy_ds_rt_snapforce         = {"joy_ds_rt_snapforce", "0", CVAR_ARCHIVE};
+cvar_t joy_ds_rt_frequency         = {"joy_ds_rt_snapforce", "0", CVAR_ARCHIVE};
+cvar_t joy_ds_rt_period            = {"joy_ds_rt_period", "0", CVAR_ARCHIVE};
+cvar_t joy_ds_rt_gallop_firstfoot  = {"joy_ds_rt_gallop_firstfoot", "0", CVAR_ARCHIVE};
+cvar_t joy_ds_rt_gallop_secondfoot = {"joy_ds_rt_gallop_secondfoot", "0", CVAR_ARCHIVE};
+cvar_t joy_ds_rt_amplitude_a       = {"joy_ds_rt_amplitude_a", "0", CVAR_ARCHIVE};
+cvar_t joy_ds_rt_amplitude_b       = {"joy_ds_rt_amplitude_b", "0", CVAR_ARCHIVE};
+
+cvar_t joy_ds_lt_mode              = {"joy_ds_lt_mode", "0", CVAR_ARCHIVE};
+cvar_t joy_ds_lt_startpos          = {"joy_ds_lt_startpos", "0", CVAR_ARCHIVE};
+cvar_t joy_ds_lt_endpos            = {"joy_ds_lt_endpos", "0", CVAR_ARCHIVE};
+cvar_t joy_ds_lt_strength          = {"joy_ds_lt_strength", "0", CVAR_ARCHIVE};
+cvar_t joy_ds_lt_snapforce         = {"joy_ds_lt_snapforce", "0", CVAR_ARCHIVE};
+cvar_t joy_ds_lt_frequency         = {"joy_ds_lt_snapforce", "0", CVAR_ARCHIVE};
+cvar_t joy_ds_lt_period            = {"joy_ds_lt_period", "0", CVAR_ARCHIVE};
+cvar_t joy_ds_lt_gallop_firstfoot  = {"joy_ds_lt_gallop_firstfoot", "0", CVAR_ARCHIVE};
+cvar_t joy_ds_lt_gallop_secondfoot = {"joy_ds_lt_gallop_secondfoot", "0", CVAR_ARCHIVE};
+cvar_t joy_ds_lt_amplitude_a       = {"joy_ds_lt_amplitude_a", "0", CVAR_ARCHIVE};
+cvar_t joy_ds_lt_amplitude_b       = {"joy_ds_lt_amplitude_b", "0", CVAR_ARCHIVE};
+
 static SDL_JoystickID joy_active_instanceid = -1;
 static int joy_active_device = -1;
 static SDL_GameController *joy_active_controller = NULL;
@@ -121,9 +145,15 @@ static qboolean ds_triggers_present = false;
 enum ds_trigger_mode {
 	tm_off = 0x05,
 	tm_feedback = 0x21,
+	tm_bow = 0x22,
+	tm_galloping = 0x23,
 	tm_weapon = 0x25,
 	tm_vibration = 0x26,
+	tm_machine = 0x27
 };
+#define DS_ENABLE_BITS1 0
+#define DS_RT_BYTES 10
+#define DS_LT_BYTES 21
 static uint8_t ds_effects_state[47] = {0};
 
 static int SDLCALL IN_FilterMouseEvents (const SDL_Event *event)
@@ -352,6 +382,12 @@ void IN_UpdateLED (void)
 #endif // SDL_VERSION_ATLEAST(2, 0, 14)
 }
 
+#if SDL_VERSION_ATLEAST(2, 0, 16)
+void IN_SetupDSTrigger (int trigger, int mode)
+{
+	//
+}
+
 void IN_SetupDSTriggers (void)
 {
 	uint8_t mode = tm_weapon;
@@ -359,22 +395,21 @@ void IN_SetupDSTriggers (void)
 	uint8_t end = CLAMP (start + 1, 8 * joy_deadzone_trigger.value, 8);
 	uint8_t strength = 8;
 	uint16_t startandstop = (uint16_t)((1 << start) | (1 << end));
-	ds_effects_state[0] = (1<<2) | (1<<3); // Enable triggers effects setting
-	#define RT_BYTES 10
-	ds_effects_state[RT_BYTES +  0] = mode;
-	ds_effects_state[RT_BYTES +  1] = (uint8_t)((startandstop >> 0) & 0xff);
-	ds_effects_state[RT_BYTES +  2] = (uint8_t)((startandstop >> 8) & 0xff);
-	ds_effects_state[RT_BYTES +  3] = strength-1;
-	ds_effects_state[RT_BYTES +  4] = 0;
-	ds_effects_state[RT_BYTES +  5] = 0;
-	ds_effects_state[RT_BYTES +  6] = 0;
-	ds_effects_state[RT_BYTES +  7] = 0;
-	ds_effects_state[RT_BYTES +  8] = 0;
-	ds_effects_state[RT_BYTES +  9] = 0;
-	ds_effects_state[RT_BYTES + 10] = 0;
-	#define LT_BYTES 21
+	ds_effects_state[DS_ENABLE_BITS1] = (1<<2) | (1<<3); // Enable triggers effects setting
+	ds_effects_state[DS_RT_BYTES +  0] = mode;
+	ds_effects_state[DS_RT_BYTES +  1] = (uint8_t)((startandstop >> 0) & 0xff);
+	ds_effects_state[DS_RT_BYTES +  2] = (uint8_t)((startandstop >> 8) & 0xff);
+	ds_effects_state[DS_RT_BYTES +  3] = strength-1;
+	ds_effects_state[DS_RT_BYTES +  4] = 0;
+	ds_effects_state[DS_RT_BYTES +  5] = 0;
+	ds_effects_state[DS_RT_BYTES +  6] = 0;
+	ds_effects_state[DS_RT_BYTES +  7] = 0;
+	ds_effects_state[DS_RT_BYTES +  8] = 0;
+	ds_effects_state[DS_RT_BYTES +  9] = 0;
+	ds_effects_state[DS_RT_BYTES + 10] = 0;
 	SDL_GameControllerSendEffect (joy_active_controller, ds_effects_state, sizeof(ds_effects_state) / sizeof(ds_effects_state[0]));
 }
+#endif // SDL_VERSION_ATLEAST(2, 0, 16)
 
 static qboolean IN_UseController (int device_index)
 {
@@ -643,6 +678,30 @@ void IN_Init (void)
 	Cvar_RegisterVariable(&joy_led_r);
 	Cvar_RegisterVariable(&joy_led_g);
 	Cvar_RegisterVariable(&joy_led_b);
+
+	Cvar_RegisterVariable(&joy_ds_rt_mode);
+	Cvar_RegisterVariable(&joy_ds_rt_startpos);
+	Cvar_RegisterVariable(&joy_ds_rt_endpos);
+	Cvar_RegisterVariable(&joy_ds_rt_strength);
+	Cvar_RegisterVariable(&joy_ds_rt_snapforce);
+	Cvar_RegisterVariable(&joy_ds_rt_frequency);
+	Cvar_RegisterVariable(&joy_ds_rt_period);
+	Cvar_RegisterVariable(&joy_ds_rt_gallop_firstfoot);
+	Cvar_RegisterVariable(&joy_ds_rt_gallop_secondfoot);
+	Cvar_RegisterVariable(&joy_ds_rt_amplitude_a);
+	Cvar_RegisterVariable(&joy_ds_rt_amplitude_b);
+
+	Cvar_RegisterVariable(&joy_ds_lt_mode);
+	Cvar_RegisterVariable(&joy_ds_lt_startpos);
+	Cvar_RegisterVariable(&joy_ds_lt_endpos);
+	Cvar_RegisterVariable(&joy_ds_lt_strength);
+	Cvar_RegisterVariable(&joy_ds_lt_snapforce);
+	Cvar_RegisterVariable(&joy_ds_lt_frequency);
+	Cvar_RegisterVariable(&joy_ds_lt_period);
+	Cvar_RegisterVariable(&joy_ds_lt_gallop_firstfoot);
+	Cvar_RegisterVariable(&joy_ds_lt_gallop_secondfoot);
+	Cvar_RegisterVariable(&joy_ds_lt_amplitude_a);
+	Cvar_RegisterVariable(&joy_ds_lt_amplitude_b);
 
 	IN_Activate();
 	IN_StartupJoystick();
@@ -1316,8 +1375,6 @@ qboolean IN_HasAdaptiveTriggers (void)
 {
 	return ds_triggers_present;
 }
-
-
 
 qboolean IN_IsCalibratingGyro (void)
 {
