@@ -161,6 +161,8 @@ enum ds_trigger_mode {
 #define DS_RT_BYTES 10
 #define DS_LT_BYTES 21
 static uint8_t ds_effects_state[47] = {0};
+static float ds_rt_threshold = 0;
+static float ds_lt_threshold = 0;
 
 static int SDLCALL IN_FilterMouseEvents (const SDL_Event *event)
 {
@@ -434,6 +436,7 @@ void IN_SetupDSTrigger (qboolean right_trigger)
 	uint16_t active_zones = 0;
 
 	int trigger_byte_fields;
+	float *ds_trigger_threshold;
 
 	if (right_trigger)
 	{
@@ -453,6 +456,7 @@ void IN_SetupDSTrigger (qboolean right_trigger)
 		slope_end         = joy_ds_rt_slope_end.value;
 
 		trigger_byte_fields = DS_RT_BYTES;
+		ds_trigger_threshold = &ds_rt_threshold;
 	}
 	else
 	{
@@ -472,6 +476,7 @@ void IN_SetupDSTrigger (qboolean right_trigger)
 		slope_end         = joy_ds_lt_slope_end.value;
 
 		trigger_byte_fields = DS_LT_BYTES;
+		ds_trigger_threshold = &ds_lt_threshold;
 	}
 
 	if (!strength)
@@ -498,6 +503,8 @@ void IN_SetupDSTrigger (qboolean right_trigger)
 			ds_effects_state[trigger_byte_fields +  8] = 0;
 			ds_effects_state[trigger_byte_fields +  9] = 0;
 			ds_effects_state[trigger_byte_fields + 10] = 0;
+
+			*ds_trigger_threshold = (endpos + 1) / 9.f;
 			break;
 		case 2:
 			//"Feedback"
@@ -522,6 +529,8 @@ void IN_SetupDSTrigger (qboolean right_trigger)
 			ds_effects_state[trigger_byte_fields +  8] = 0;
 			ds_effects_state[trigger_byte_fields +  9] = 0;
 			ds_effects_state[trigger_byte_fields + 10] = 0;
+
+			*ds_trigger_threshold = startpos / 9.f;
 			break;
 		case 3:
 			//"Slope"
@@ -553,6 +562,8 @@ void IN_SetupDSTrigger (qboolean right_trigger)
 			ds_effects_state[trigger_byte_fields +  8] = 0;
 			ds_effects_state[trigger_byte_fields +  9] = 0;
 			ds_effects_state[trigger_byte_fields + 10] = 0;
+
+			*ds_trigger_threshold = startpos / 9.f;
 			break;
 		case 4:
 			//"Vibration"
@@ -577,6 +588,8 @@ void IN_SetupDSTrigger (qboolean right_trigger)
 			ds_effects_state[trigger_byte_fields +  8] = 0;
 			ds_effects_state[trigger_byte_fields +  9] = frequency;
 			ds_effects_state[trigger_byte_fields + 10] = 0;
+
+			*ds_trigger_threshold = startpos / 9.f;
 			break;
 		case 5:
 			//"Bow"
@@ -600,6 +613,8 @@ void IN_SetupDSTrigger (qboolean right_trigger)
 			ds_effects_state[trigger_byte_fields +  8] = 0;
 			ds_effects_state[trigger_byte_fields +  9] = 0;
 			ds_effects_state[trigger_byte_fields + 10] = 0;
+
+			*ds_trigger_threshold = endpos / 9.f;
 			break;
 		case 6:
 			//"Galloping"
@@ -622,6 +637,8 @@ void IN_SetupDSTrigger (qboolean right_trigger)
 			ds_effects_state[trigger_byte_fields +  8] = 0;
 			ds_effects_state[trigger_byte_fields +  9] = 0;
 			ds_effects_state[trigger_byte_fields + 10] = 0;
+
+			*ds_trigger_threshold = startpos / 9.f;
 			break;
 		case 7:
 			//"Machine"
@@ -644,6 +661,8 @@ void IN_SetupDSTrigger (qboolean right_trigger)
 			ds_effects_state[trigger_byte_fields +  8] = 0;
 			ds_effects_state[trigger_byte_fields +  9] = 0;
 			ds_effects_state[trigger_byte_fields + 10] = 0;
+
+			*ds_trigger_threshold = startpos / 9.f;
 			break;
 		case 0:
 		default:
@@ -659,6 +678,8 @@ void IN_SetupDSTrigger (qboolean right_trigger)
 			ds_effects_state[trigger_byte_fields +  8] = 0;
 			ds_effects_state[trigger_byte_fields +  9] = 0;
 			ds_effects_state[trigger_byte_fields + 10] = 0;
+
+			*ds_trigger_threshold = 0.f;
 			break;
 	}
 }
@@ -1230,10 +1251,19 @@ void IN_Commands (void)
 	joyaxisstate_t newaxisstate;
 	int i;
 	const float stickthreshold = 0.9;
-	const float triggerthreshold = joy_deadzone_trigger.value;
+	float left_triggerthreshold  = joy_deadzone_trigger.value;
+	float right_triggerthreshold = joy_deadzone_trigger.value;
 	
 	if (!joy_active_controller)
 		return;
+
+	if (IN_HasAdaptiveTriggers())
+	{
+		if (ds_lt_threshold)
+			left_triggerthreshold = ds_lt_threshold;
+		if (ds_rt_threshold)
+			right_triggerthreshold = ds_rt_threshold;
+	}
 
 	// emit key events for controller buttons
 	for (i = 0; i < SDL_CONTROLLER_BUTTON_MAX; i++)
@@ -1299,8 +1329,8 @@ void IN_Commands (void)
 	}
 
 	// emit emulated keys for the analog triggers
-	IN_JoyKeyEvent(joy_axisstate.axisvalue[SDL_CONTROLLER_AXIS_TRIGGERLEFT] > triggerthreshold,  newaxisstate.axisvalue[SDL_CONTROLLER_AXIS_TRIGGERLEFT] > triggerthreshold, K_LTRIGGER, &joy_emulatedkeytimer[4]);
-	IN_JoyKeyEvent(joy_axisstate.axisvalue[SDL_CONTROLLER_AXIS_TRIGGERRIGHT] > triggerthreshold, newaxisstate.axisvalue[SDL_CONTROLLER_AXIS_TRIGGERRIGHT] > triggerthreshold, K_RTRIGGER, &joy_emulatedkeytimer[5]);
+	IN_JoyKeyEvent(joy_axisstate.axisvalue[SDL_CONTROLLER_AXIS_TRIGGERLEFT] > left_triggerthreshold,   newaxisstate.axisvalue[SDL_CONTROLLER_AXIS_TRIGGERLEFT] > left_triggerthreshold,   K_LTRIGGER, &joy_emulatedkeytimer[4]);
+	IN_JoyKeyEvent(joy_axisstate.axisvalue[SDL_CONTROLLER_AXIS_TRIGGERRIGHT] > right_triggerthreshold, newaxisstate.axisvalue[SDL_CONTROLLER_AXIS_TRIGGERRIGHT] > right_triggerthreshold, K_RTRIGGER, &joy_emulatedkeytimer[5]);
 	
 	joy_axisstate = newaxisstate;
 }
