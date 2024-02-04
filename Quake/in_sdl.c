@@ -88,24 +88,28 @@ cvar_t joy_ds_rt_startpos          = {"joy_ds_rt_startpos", "0", CVAR_ARCHIVE};
 cvar_t joy_ds_rt_endpos            = {"joy_ds_rt_endpos", "0", CVAR_ARCHIVE};
 cvar_t joy_ds_rt_strength          = {"joy_ds_rt_strength", "0", CVAR_ARCHIVE};
 cvar_t joy_ds_rt_snapforce         = {"joy_ds_rt_snapforce", "0", CVAR_ARCHIVE};
-cvar_t joy_ds_rt_frequency         = {"joy_ds_rt_snapforce", "0", CVAR_ARCHIVE};
+cvar_t joy_ds_rt_frequency         = {"joy_ds_rt_frequency", "0", CVAR_ARCHIVE};
 cvar_t joy_ds_rt_period            = {"joy_ds_rt_period", "0", CVAR_ARCHIVE};
 cvar_t joy_ds_rt_gallop_firstfoot  = {"joy_ds_rt_gallop_firstfoot", "0", CVAR_ARCHIVE};
 cvar_t joy_ds_rt_gallop_secondfoot = {"joy_ds_rt_gallop_secondfoot", "0", CVAR_ARCHIVE};
 cvar_t joy_ds_rt_amplitude_a       = {"joy_ds_rt_amplitude_a", "0", CVAR_ARCHIVE};
 cvar_t joy_ds_rt_amplitude_b       = {"joy_ds_rt_amplitude_b", "0", CVAR_ARCHIVE};
+cvar_t joy_ds_rt_slope_start       = {"joy_ds_rt_slope_start", "0", CVAR_ARCHIVE};
+cvar_t joy_ds_rt_slope_end         = {"joy_ds_rt_slope_end", "0", CVAR_ARCHIVE};
 
 cvar_t joy_ds_lt_mode              = {"joy_ds_lt_mode", "0", CVAR_ARCHIVE};
 cvar_t joy_ds_lt_startpos          = {"joy_ds_lt_startpos", "0", CVAR_ARCHIVE};
 cvar_t joy_ds_lt_endpos            = {"joy_ds_lt_endpos", "0", CVAR_ARCHIVE};
 cvar_t joy_ds_lt_strength          = {"joy_ds_lt_strength", "0", CVAR_ARCHIVE};
 cvar_t joy_ds_lt_snapforce         = {"joy_ds_lt_snapforce", "0", CVAR_ARCHIVE};
-cvar_t joy_ds_lt_frequency         = {"joy_ds_lt_snapforce", "0", CVAR_ARCHIVE};
+cvar_t joy_ds_lt_frequency         = {"joy_ds_lt_frequency", "0", CVAR_ARCHIVE};
 cvar_t joy_ds_lt_period            = {"joy_ds_lt_period", "0", CVAR_ARCHIVE};
 cvar_t joy_ds_lt_gallop_firstfoot  = {"joy_ds_lt_gallop_firstfoot", "0", CVAR_ARCHIVE};
 cvar_t joy_ds_lt_gallop_secondfoot = {"joy_ds_lt_gallop_secondfoot", "0", CVAR_ARCHIVE};
 cvar_t joy_ds_lt_amplitude_a       = {"joy_ds_lt_amplitude_a", "0", CVAR_ARCHIVE};
 cvar_t joy_ds_lt_amplitude_b       = {"joy_ds_lt_amplitude_b", "0", CVAR_ARCHIVE};
+cvar_t joy_ds_lt_slope_start       = {"joy_ds_lt_slope_start", "0", CVAR_ARCHIVE};
+cvar_t joy_ds_lt_slope_end         = {"joy_ds_lt_slope_end", "0", CVAR_ARCHIVE};
 
 static SDL_JoystickID joy_active_instanceid = -1;
 static int joy_active_device = -1;
@@ -151,7 +155,9 @@ enum ds_trigger_mode {
 	tm_vibration = 0x26,
 	tm_machine = 0x27
 };
+#define NUM_DS_TRIGGER_MODES 8
 #define DS_ENABLE_BITS1 0
+#define DS_ENABLE_BITS2 1
 #define DS_RT_BYTES 10
 #define DS_LT_BYTES 21
 static uint8_t ds_effects_state[47] = {0};
@@ -382,34 +388,305 @@ void IN_UpdateLED (void)
 #endif // SDL_VERSION_ATLEAST(2, 0, 14)
 }
 
-#if SDL_VERSION_ATLEAST(2, 0, 16)
-void IN_SetupDSTrigger (int trigger, int mode)
+const char* IN_GetDSTriggerModeName (int mode)
 {
-	//
+	switch (mode)
+	{
+		case 0:
+		default:
+			return "Off";
+		case 1:
+			return "Weapon";
+		case 2:
+			return "Feedback";
+		case 3:
+			return "Slope";
+		case 4:
+			return "Vibration";
+		case 5:
+			return "Bow";
+		case 6:
+			return "Galloping";
+		case 7:
+			return "Machine";
+	}
+}
+
+#if SDL_VERSION_ATLEAST(2, 0, 16)
+void IN_SetupDSTrigger (qboolean right_trigger)
+{
+	int mode = 0;
+	uint8_t startpos = 0;
+	uint8_t endpos = 0;
+	uint8_t strength = 0;
+	uint8_t snapforce = 0;
+	uint8_t frequency = 0;
+	uint8_t period = 0;
+	uint8_t gallop_firstfoot = 0;
+	uint8_t gallop_secondfoot = 0;
+	uint8_t amplitude_a = 0;
+	uint8_t amplitude_b = 0;
+	uint8_t slope_start = 0;
+	uint8_t slope_end = 0;
+
+	uint16_t startandstop = 0;
+	uint32_t force_zones  = 0;
+	uint16_t active_zones = 0;
+
+	int trigger_byte_fields;
+
+	if (right_trigger)
+	{
+		mode = MAX(0, joy_ds_rt_mode.value);
+
+		startpos          = joy_ds_rt_startpos.value;
+		endpos            = joy_ds_rt_endpos.value;
+		strength          = joy_ds_rt_strength.value;
+		snapforce         = joy_ds_rt_snapforce.value;
+		frequency         = joy_ds_rt_frequency.value;
+		period            = joy_ds_rt_period.value;
+		gallop_firstfoot  = joy_ds_rt_gallop_firstfoot.value;
+		gallop_secondfoot = joy_ds_rt_gallop_secondfoot.value;
+		amplitude_a       = joy_ds_rt_amplitude_a.value;
+		amplitude_b       = joy_ds_rt_amplitude_b.value;
+		slope_start       = joy_ds_rt_slope_start.value;
+		slope_end         = joy_ds_rt_slope_end.value;
+
+		trigger_byte_fields = DS_RT_BYTES;
+	}
+	else
+	{
+		mode = MAX(0, joy_ds_lt_mode.value);
+
+		startpos          = joy_ds_lt_startpos.value;
+		endpos            = joy_ds_lt_endpos.value;
+		strength          = joy_ds_lt_strength.value;
+		snapforce         = joy_ds_lt_snapforce.value;
+		frequency         = joy_ds_lt_frequency.value;
+		period            = joy_ds_lt_period.value;
+		gallop_firstfoot  = joy_ds_lt_gallop_firstfoot.value;
+		gallop_secondfoot = joy_ds_lt_gallop_secondfoot.value;
+		amplitude_a       = joy_ds_lt_amplitude_a.value;
+		amplitude_b       = joy_ds_lt_amplitude_b.value;
+		slope_start       = joy_ds_lt_slope_start.value;
+		slope_end         = joy_ds_lt_slope_end.value;
+
+		trigger_byte_fields = DS_LT_BYTES;
+	}
+
+	if (!strength)
+		mode = 0;
+
+	switch (mode)
+	{
+		case 1:
+			//"Weapon"
+			startpos = CLAMP (2, startpos, 7);
+			endpos = CLAMP (startpos + 1, endpos, 8);
+			strength = CLAMP (1, strength, 8);
+
+			startandstop = (uint16_t)((1 << startpos) | (1 << endpos));
+
+			ds_effects_state[trigger_byte_fields +  0] = tm_weapon;
+			ds_effects_state[trigger_byte_fields +  1] = (uint8_t)((startandstop >> 0) & 0xff);
+			ds_effects_state[trigger_byte_fields +  2] = (uint8_t)((startandstop >> 8) & 0xff);
+			ds_effects_state[trigger_byte_fields +  3] = strength-1;
+			ds_effects_state[trigger_byte_fields +  4] = 0;
+			ds_effects_state[trigger_byte_fields +  5] = 0;
+			ds_effects_state[trigger_byte_fields +  6] = 0;
+			ds_effects_state[trigger_byte_fields +  7] = 0;
+			ds_effects_state[trigger_byte_fields +  8] = 0;
+			ds_effects_state[trigger_byte_fields +  9] = 0;
+			ds_effects_state[trigger_byte_fields + 10] = 0;
+			break;
+		case 2:
+			//"Feedback"
+			startpos = CLAMP (0, startpos, 9);
+			strength = CLAMP (1, strength, 8);
+
+			strength = (strength - 1) & 0x07;
+			for (int i = startpos; i < 10; i++)
+			{
+				force_zones  |= (uint32_t)(strength << (3 * i));
+				active_zones |= (uint16_t)(1 << i);
+			}
+
+			ds_effects_state[trigger_byte_fields +  0] = tm_feedback;
+			ds_effects_state[trigger_byte_fields +  1] = (uint8_t)((active_zones >> 0) & 0xff);
+			ds_effects_state[trigger_byte_fields +  2] = (uint8_t)((active_zones >> 8) & 0xff);
+			ds_effects_state[trigger_byte_fields +  3] = (uint8_t)((force_zones >>  0) & 0xff);
+			ds_effects_state[trigger_byte_fields +  4] = (uint8_t)((force_zones >>  8) & 0xff);
+			ds_effects_state[trigger_byte_fields +  5] = (uint8_t)((force_zones >> 16) & 0xff);
+			ds_effects_state[trigger_byte_fields +  6] = (uint8_t)((force_zones >> 24) & 0xff);
+			ds_effects_state[trigger_byte_fields +  7] = 0;
+			ds_effects_state[trigger_byte_fields +  8] = 0;
+			ds_effects_state[trigger_byte_fields +  9] = 0;
+			ds_effects_state[trigger_byte_fields + 10] = 0;
+			break;
+		case 3:
+			//"Slope"
+			startpos = CLAMP (0, startpos, 8);
+			endpos = CLAMP (startpos+1, endpos, 9);
+			slope_start = CLAMP (1, slope_start, 8);
+			slope_end = CLAMP (1, slope_end, 8);
+
+			uint8_t strengths[10] = {0};
+			float slope = 1.0f * (slope_end - slope_start) / (endpos - startpos);
+			for (int i = (int)startpos; i < 10; i++) {
+                if (i <= endpos)
+                    strengths[i] = (uint8_t)roundf(slope_start + slope * (i - startpos));
+                else
+                    strengths[i] = slope_end;
+				strength = (uint8_t)((strengths[i] - 1) & 0x07);
+				force_zones  |= (uint32_t)(strength << (3 * i));
+				active_zones |= (uint16_t)(1 << i);
+			}
+
+			ds_effects_state[trigger_byte_fields +  0] = tm_feedback;
+			ds_effects_state[trigger_byte_fields +  1] = (uint8_t)((active_zones >> 0) & 0xff);
+			ds_effects_state[trigger_byte_fields +  2] = (uint8_t)((active_zones >> 8) & 0xff);
+			ds_effects_state[trigger_byte_fields +  3] = (uint8_t)((force_zones >>  0) & 0xff);
+			ds_effects_state[trigger_byte_fields +  4] = (uint8_t)((force_zones >>  8) & 0xff);
+			ds_effects_state[trigger_byte_fields +  5] = (uint8_t)((force_zones >> 16) & 0xff);
+			ds_effects_state[trigger_byte_fields +  6] = (uint8_t)((force_zones >> 24) & 0xff);
+			ds_effects_state[trigger_byte_fields +  7] = 0;
+			ds_effects_state[trigger_byte_fields +  8] = 0;
+			ds_effects_state[trigger_byte_fields +  9] = 0;
+			ds_effects_state[trigger_byte_fields + 10] = 0;
+			break;
+		case 4:
+			//"Vibration"
+			startpos = CLAMP (0, startpos, 9);
+			strength = CLAMP (1, strength, 8); //Nielk1 specs states it's 0 at minimum, probably typo? 
+
+			strength = (strength - 1) & 0x07;
+			for (int i = startpos; i < 10; i++)
+			{
+				force_zones  |= (uint32_t)(strength << (3 * i));
+				active_zones |= (uint16_t)(1 << i);
+			}
+
+			ds_effects_state[trigger_byte_fields +  0] = tm_vibration;
+			ds_effects_state[trigger_byte_fields +  1] = (uint8_t)((active_zones >> 0) & 0xff);
+			ds_effects_state[trigger_byte_fields +  2] = (uint8_t)((active_zones >> 8) & 0xff);
+			ds_effects_state[trigger_byte_fields +  3] = (uint8_t)((force_zones >>  0) & 0xff);
+			ds_effects_state[trigger_byte_fields +  4] = (uint8_t)((force_zones >>  8) & 0xff);
+			ds_effects_state[trigger_byte_fields +  5] = (uint8_t)((force_zones >> 16) & 0xff);
+			ds_effects_state[trigger_byte_fields +  6] = (uint8_t)((force_zones >> 24) & 0xff);
+			ds_effects_state[trigger_byte_fields +  7] = 0;
+			ds_effects_state[trigger_byte_fields +  8] = 0;
+			ds_effects_state[trigger_byte_fields +  9] = frequency;
+			ds_effects_state[trigger_byte_fields + 10] = 0;
+			break;
+		case 5:
+			//"Bow"
+			startpos = CLAMP (0, startpos, 7);
+			endpos = CLAMP (startpos+1, endpos, 8);
+			// Specs again say minimal for these two allowed are 0, i'm not sure...
+			strength = CLAMP (1, strength, 8);
+			snapforce = CLAMP (1, snapforce, 8);
+
+			startandstop = (uint16_t)((1 << startpos) | (1 << endpos));
+			uint32_t force_pair = (uint32_t)((((strength  - 1) & 0x07) << (3 * 0)) | (((snapforce - 1) & 0x07) << (3 * 1)));
+
+			ds_effects_state[trigger_byte_fields +  0] = tm_bow;
+			ds_effects_state[trigger_byte_fields +  1] = (uint8_t)((startandstop >> 0) & 0xff);
+			ds_effects_state[trigger_byte_fields +  2] = (uint8_t)((startandstop >> 8) & 0xff);
+			ds_effects_state[trigger_byte_fields +  3] = (uint8_t)((force_pair >> 0) & 0xff);
+			ds_effects_state[trigger_byte_fields +  4] = (uint8_t)((force_pair >> 8) & 0xff);
+			ds_effects_state[trigger_byte_fields +  5] = 0;
+			ds_effects_state[trigger_byte_fields +  6] = 0;
+			ds_effects_state[trigger_byte_fields +  7] = 0;
+			ds_effects_state[trigger_byte_fields +  8] = 0;
+			ds_effects_state[trigger_byte_fields +  9] = 0;
+			ds_effects_state[trigger_byte_fields + 10] = 0;
+			break;
+		case 6:
+			//"Galloping"
+			startpos = CLAMP (0, startpos, 8);
+			endpos = CLAMP (startpos+1, endpos, 9);
+			gallop_firstfoot = CLAMP (0, gallop_firstfoot, 6);
+			gallop_secondfoot = CLAMP (gallop_firstfoot+1, gallop_secondfoot, 7);
+
+			startandstop = (uint16_t)((1 << startpos) | (1 << endpos));
+			uint32_t timeandratio = (uint32_t)(((gallop_secondfoot & 0x07) << (3 * 0)) | ((gallop_firstfoot & 0x07) << (3 * 1)));
+
+			ds_effects_state[trigger_byte_fields +  0] = tm_galloping;
+			ds_effects_state[trigger_byte_fields +  1] = (uint8_t)((startandstop >> 0) & 0xff);
+			ds_effects_state[trigger_byte_fields +  2] = (uint8_t)((startandstop >> 8) & 0xff);
+			ds_effects_state[trigger_byte_fields +  3] = (uint8_t)((timeandratio >> 0) & 0xff);
+			ds_effects_state[trigger_byte_fields +  4] = frequency;
+			ds_effects_state[trigger_byte_fields +  5] = 0;
+			ds_effects_state[trigger_byte_fields +  6] = 0;
+			ds_effects_state[trigger_byte_fields +  7] = 0;
+			ds_effects_state[trigger_byte_fields +  8] = 0;
+			ds_effects_state[trigger_byte_fields +  9] = 0;
+			ds_effects_state[trigger_byte_fields + 10] = 0;
+			break;
+		case 7:
+			//"Machine"
+			startpos = CLAMP (0, startpos, 8);
+			endpos = CLAMP (startpos, endpos, 9);
+			amplitude_a = CLAMP (0, amplitude_a, 7);
+			amplitude_b = CLAMP (0, amplitude_b, 7);
+
+			startandstop = (uint16_t)((1 << startpos) | (1 << endpos));
+			uint32_t strength_pair = (uint32_t)(((amplitude_a & 0x07) << (3 * 0)) | ((amplitude_b & 0x07) << (3 * 1)));
+
+			ds_effects_state[trigger_byte_fields +  0] = tm_machine;
+			ds_effects_state[trigger_byte_fields +  1] = (uint8_t)((startandstop >> 0) & 0xff);
+			ds_effects_state[trigger_byte_fields +  2] = (uint8_t)((startandstop >> 8) & 0xff);
+			ds_effects_state[trigger_byte_fields +  3] = (uint8_t)((strength_pair >> 0) & 0xff);
+			ds_effects_state[trigger_byte_fields +  4] = frequency;
+			ds_effects_state[trigger_byte_fields +  5] = period;
+			ds_effects_state[trigger_byte_fields +  6] = 0;
+			ds_effects_state[trigger_byte_fields +  7] = 0;
+			ds_effects_state[trigger_byte_fields +  8] = 0;
+			ds_effects_state[trigger_byte_fields +  9] = 0;
+			ds_effects_state[trigger_byte_fields + 10] = 0;
+			break;
+		case 0:
+		default:
+			//"Off"
+			ds_effects_state[trigger_byte_fields +  0] = tm_off;
+			ds_effects_state[trigger_byte_fields +  1] = 0;
+			ds_effects_state[trigger_byte_fields +  2] = 0;
+			ds_effects_state[trigger_byte_fields +  3] = 0;
+			ds_effects_state[trigger_byte_fields +  4] = 0;
+			ds_effects_state[trigger_byte_fields +  5] = 0;
+			ds_effects_state[trigger_byte_fields +  6] = 0;
+			ds_effects_state[trigger_byte_fields +  7] = 0;
+			ds_effects_state[trigger_byte_fields +  8] = 0;
+			ds_effects_state[trigger_byte_fields +  9] = 0;
+			ds_effects_state[trigger_byte_fields + 10] = 0;
+			break;
+	}
 }
 
 void IN_SetupDSTriggers (void)
 {
-	uint8_t mode = tm_weapon;
-	uint8_t start = CLAMP (2, 0, 7);
-	uint8_t end = CLAMP (start + 1, 8 * joy_deadzone_trigger.value, 8);
-	uint8_t strength = 8;
-	uint16_t startandstop = (uint16_t)((1 << start) | (1 << end));
+	if (!IN_HasAdaptiveTriggers ())
+		return;
 	ds_effects_state[DS_ENABLE_BITS1] = (1<<2) | (1<<3); // Enable triggers effects setting
-	ds_effects_state[DS_RT_BYTES +  0] = mode;
-	ds_effects_state[DS_RT_BYTES +  1] = (uint8_t)((startandstop >> 0) & 0xff);
-	ds_effects_state[DS_RT_BYTES +  2] = (uint8_t)((startandstop >> 8) & 0xff);
-	ds_effects_state[DS_RT_BYTES +  3] = strength-1;
-	ds_effects_state[DS_RT_BYTES +  4] = 0;
-	ds_effects_state[DS_RT_BYTES +  5] = 0;
-	ds_effects_state[DS_RT_BYTES +  6] = 0;
-	ds_effects_state[DS_RT_BYTES +  7] = 0;
-	ds_effects_state[DS_RT_BYTES +  8] = 0;
-	ds_effects_state[DS_RT_BYTES +  9] = 0;
-	ds_effects_state[DS_RT_BYTES + 10] = 0;
+	ds_effects_state[DS_ENABLE_BITS2] = 0; // Do not affect LED
+	IN_SetupDSTrigger (0);
+	IN_SetupDSTrigger (1);
 	SDL_GameControllerSendEffect (joy_active_controller, ds_effects_state, sizeof(ds_effects_state) / sizeof(ds_effects_state[0]));
 }
 #endif // SDL_VERSION_ATLEAST(2, 0, 16)
+
+static void DS_Triggers_cvar_callback (cvar_t *cvar)
+{
+#if SDL_VERSION_ATLEAST(2, 0, 16)
+	IN_SetupDSTriggers ();
+#endif // SDL_VERSION_ATLEAST(2, 0, 16)
+}
+
+static void Joy_DS_Mode_Completion_f (cvar_t *cvar, const char *partial)
+{
+	for (int i = 0; i < NUM_DS_TRIGGER_MODES; i++)
+		Con_AddToTabList (va ("%d", i), partial, IN_GetDSTriggerModeName (i));
+}
 
 static qboolean IN_UseController (int device_index)
 {
@@ -690,7 +967,9 @@ void IN_Init (void)
 	Cvar_RegisterVariable(&joy_ds_rt_gallop_secondfoot);
 	Cvar_RegisterVariable(&joy_ds_rt_amplitude_a);
 	Cvar_RegisterVariable(&joy_ds_rt_amplitude_b);
-
+	Cvar_RegisterVariable(&joy_ds_rt_slope_start);
+	Cvar_RegisterVariable(&joy_ds_rt_slope_end);
+	
 	Cvar_RegisterVariable(&joy_ds_lt_mode);
 	Cvar_RegisterVariable(&joy_ds_lt_startpos);
 	Cvar_RegisterVariable(&joy_ds_lt_endpos);
@@ -702,6 +981,39 @@ void IN_Init (void)
 	Cvar_RegisterVariable(&joy_ds_lt_gallop_secondfoot);
 	Cvar_RegisterVariable(&joy_ds_lt_amplitude_a);
 	Cvar_RegisterVariable(&joy_ds_lt_amplitude_b);
+	Cvar_RegisterVariable(&joy_ds_lt_slope_start);
+	Cvar_RegisterVariable(&joy_ds_lt_slope_end);
+
+	Cvar_SetCallback(&joy_ds_rt_mode, DS_Triggers_cvar_callback);
+	Cvar_SetCallback(&joy_ds_rt_startpos, DS_Triggers_cvar_callback);
+	Cvar_SetCallback(&joy_ds_rt_endpos, DS_Triggers_cvar_callback);
+	Cvar_SetCallback(&joy_ds_rt_strength, DS_Triggers_cvar_callback);
+	Cvar_SetCallback(&joy_ds_rt_snapforce, DS_Triggers_cvar_callback);
+	Cvar_SetCallback(&joy_ds_rt_frequency, DS_Triggers_cvar_callback);
+	Cvar_SetCallback(&joy_ds_rt_period, DS_Triggers_cvar_callback);
+	Cvar_SetCallback(&joy_ds_rt_gallop_firstfoot, DS_Triggers_cvar_callback);
+	Cvar_SetCallback(&joy_ds_rt_gallop_secondfoot, DS_Triggers_cvar_callback);
+	Cvar_SetCallback(&joy_ds_rt_amplitude_a, DS_Triggers_cvar_callback);
+	Cvar_SetCallback(&joy_ds_rt_amplitude_b, DS_Triggers_cvar_callback);
+	Cvar_SetCallback(&joy_ds_rt_slope_start, DS_Triggers_cvar_callback);
+	Cvar_SetCallback(&joy_ds_rt_slope_end, DS_Triggers_cvar_callback);
+	
+	Cvar_SetCallback(&joy_ds_lt_mode, DS_Triggers_cvar_callback);
+	Cvar_SetCallback(&joy_ds_lt_startpos, DS_Triggers_cvar_callback);
+	Cvar_SetCallback(&joy_ds_lt_endpos, DS_Triggers_cvar_callback);
+	Cvar_SetCallback(&joy_ds_lt_strength, DS_Triggers_cvar_callback);
+	Cvar_SetCallback(&joy_ds_lt_snapforce, DS_Triggers_cvar_callback);
+	Cvar_SetCallback(&joy_ds_lt_frequency, DS_Triggers_cvar_callback);
+	Cvar_SetCallback(&joy_ds_lt_period, DS_Triggers_cvar_callback);
+	Cvar_SetCallback(&joy_ds_lt_gallop_firstfoot, DS_Triggers_cvar_callback);
+	Cvar_SetCallback(&joy_ds_lt_gallop_secondfoot, DS_Triggers_cvar_callback);
+	Cvar_SetCallback(&joy_ds_lt_amplitude_a, DS_Triggers_cvar_callback);
+	Cvar_SetCallback(&joy_ds_lt_amplitude_b, DS_Triggers_cvar_callback);
+	Cvar_SetCallback(&joy_ds_lt_slope_start, DS_Triggers_cvar_callback);
+	Cvar_SetCallback(&joy_ds_lt_slope_end, DS_Triggers_cvar_callback);
+
+	Cvar_SetCompletion(&joy_ds_rt_mode, Joy_DS_Mode_Completion_f);
+	Cvar_SetCompletion(&joy_ds_lt_mode, Joy_DS_Mode_Completion_f);
 
 	IN_Activate();
 	IN_StartupJoystick();
