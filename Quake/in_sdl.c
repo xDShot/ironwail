@@ -440,7 +440,7 @@ void IN_SetupDSTrigger (qboolean right_trigger)
 
 	if (right_trigger)
 	{
-		mode = MAX(0, joy_ds_rt_mode.value);
+		mode = q_max (0, joy_ds_rt_mode.value);
 
 		startpos          = joy_ds_rt_startpos.value;
 		endpos            = joy_ds_rt_endpos.value;
@@ -460,7 +460,7 @@ void IN_SetupDSTrigger (qboolean right_trigger)
 	}
 	else
 	{
-		mode = MAX(0, joy_ds_lt_mode.value);
+		mode = q_max (0, joy_ds_lt_mode.value);
 
 		startpos          = joy_ds_lt_startpos.value;
 		endpos            = joy_ds_lt_endpos.value;
@@ -696,6 +696,22 @@ void IN_SetupDSTriggers (void)
 }
 #endif // SDL_VERSION_ATLEAST(2, 0, 16)
 
+void IN_ResetCurrentController (void)
+{
+	if (!joy_active_controller)
+		return;
+#if SDL_VERSION_ATLEAST(2, 0, 16)
+	if (SDL_GameControllerGetType (joy_active_controller) == SDL_CONTROLLER_TYPE_PS5 )
+	{
+		ds_effects_state[DS_ENABLE_BITS1] = (1<<2) | (1<<3); // Enable triggers effects setting
+		ds_effects_state[DS_ENABLE_BITS2] = (1<<3); // Reset LED
+		ds_effects_state[DS_RT_BYTES +  0] = tm_off;
+		ds_effects_state[DS_LT_BYTES +  0] = tm_off;
+		SDL_GameControllerSendEffect (joy_active_controller, ds_effects_state, sizeof(ds_effects_state) / sizeof(ds_effects_state[0]));
+	}
+#endif // SDL_VERSION_ATLEAST(2, 0, 16)
+}
+
 static void DS_Triggers_cvar_callback (cvar_t *cvar)
 {
 #if SDL_VERSION_ATLEAST(2, 0, 16)
@@ -719,6 +735,7 @@ static qboolean IN_UseController (int device_index)
 
 	if (joy_active_device != -1)
 	{
+		IN_ResetCurrentController ();
 		SDL_GameControllerClose (joy_active_controller);
 
 		// Only show "gamepad removed" message when disabling the gamepad altogether,
