@@ -157,7 +157,6 @@ enum ds_trigger_mode {
 };
 #define NUM_DS_TRIGGER_MODES 8
 #define DS_ENABLE_BITS1 0
-#define DS_ENABLE_BITS2 1
 #define DS_RT_BYTES 10
 #define DS_LT_BYTES 21
 static uint8_t ds_effects_state[47] = {0};
@@ -689,7 +688,6 @@ void IN_SetupDSTriggers (void)
 	if (!IN_HasAdaptiveTriggers ())
 		return;
 	ds_effects_state[DS_ENABLE_BITS1] = (1<<2) | (1<<3); // Enable triggers effects setting
-	ds_effects_state[DS_ENABLE_BITS2] = 0; // Do not affect LED
 	IN_SetupDSTrigger (0);
 	IN_SetupDSTrigger (1);
 	SDL_GameControllerSendEffect (joy_active_controller, ds_effects_state, sizeof(ds_effects_state) / sizeof(ds_effects_state[0]));
@@ -703,8 +701,10 @@ void IN_ResetCurrentController (void)
 #if SDL_VERSION_ATLEAST(2, 0, 16)
 	if (SDL_GameControllerGetType (joy_active_controller) == SDL_CONTROLLER_TYPE_PS5 )
 	{
+		// Reset to player index 1 and blue LED, default ones
+		SDL_GameControllerSetPlayerIndex (joy_active_controller, 0);
+		SDL_GameControllerSetLED (joy_active_controller, 0, 0, 64);
 		ds_effects_state[DS_ENABLE_BITS1] = (1<<2) | (1<<3); // Enable triggers effects setting
-		ds_effects_state[DS_ENABLE_BITS2] = (1<<3); // Reset LED
 		ds_effects_state[DS_RT_BYTES +  0] = tm_off;
 		ds_effects_state[DS_LT_BYTES +  0] = tm_off;
 		SDL_GameControllerSendEffect (joy_active_controller, ds_effects_state, sizeof(ds_effects_state) / sizeof(ds_effects_state[0]));
