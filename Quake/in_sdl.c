@@ -387,8 +387,8 @@ void IN_UpdateLED (void)
 
 		SDL_GameControllerSetLED (joy_active_controller, joy_led[0] * 255, joy_led[1] * 255, joy_led[2] * 255);
     }
-#endif // SDL_VERSION_ATLEAST(2, 0, 14)
 }
+#endif // SDL_VERSION_ATLEAST(2, 0, 14)
 
 const char* IN_GetDSTriggerModeName (int mode)
 {
