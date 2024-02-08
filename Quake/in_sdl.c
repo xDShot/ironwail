@@ -146,7 +146,7 @@ static qboolean ds_triggers_present = false;
 // https://controllers.fandom.com/wiki/Sony_DualSense
 // https://gist.github.com/Nielk1/6d54cc2c00d2201ccb8c2720ad7538db
 // https://github.com/nowrep/dualsensectl
-enum ds_trigger_mode {
+enum ds_trigger_state {
 	tm_off = 0x05,
 	tm_feedback = 0x21,
 	tm_bow = 0x22,
@@ -155,7 +155,6 @@ enum ds_trigger_mode {
 	tm_vibration = 0x26,
 	tm_machine = 0x27
 };
-#define NUM_DS_TRIGGER_MODES 8
 #define DS_ENABLE_BITS1 0
 #define DS_RT_BYTES 10
 #define DS_LT_BYTES 21
@@ -355,7 +354,6 @@ void IN_UpdateLED (void)
 		color = base_color + ( add_color - base_color ) * add_scale;
 		
 		// Blend flashes (v_blend from view.c) on top of current color
-		extern float v_blend[4];
 		vec3_t v_blend_led = { v_blend[0], v_blend[1], v_blend[2] };
 		float v_blend_scale = pow( sin( v_blend[3] * M_PI ), 0.5);
 		VectorScale(v_blend_led, v_blend_scale, v_blend_led);
@@ -393,22 +391,22 @@ const char* IN_GetDSTriggerModeName (int mode)
 {
 	switch (mode)
 	{
-		case 0:
+		case DS_TRIGGER_OFF:
 		default:
 			return "Off";
-		case 1:
+		case DS_TRIGGER_WEAPON:
 			return "Weapon";
-		case 2:
+		case DS_TRIGGER_FEEDBACK:
 			return "Feedback";
-		case 3:
+		case DS_TRIGGER_SLOPE:
 			return "Slope";
-		case 4:
+		case DS_TRIGGER_VIBRATION:
 			return "Vibration";
-		case 5:
+		case DS_TRIGGER_BOW:
 			return "Bow";
-		case 6:
+		case DS_TRIGGER_GALLOPING:
 			return "Galloping";
-		case 7:
+		case DS_TRIGGER_MACHINE:
 			return "Machine";
 	}
 }
@@ -478,13 +476,9 @@ void IN_SetupDSTrigger (qboolean right_trigger)
 		ds_trigger_threshold = &ds_lt_threshold;
 	}
 
-	if (!strength)
-		mode = 0;
-
 	switch (mode)
 	{
-		case 1:
-			//"Weapon"
+		case DS_TRIGGER_WEAPON:
 			startpos = CLAMP (2, startpos, 7);
 			endpos = CLAMP (startpos + 1, endpos, 8);
 			strength = CLAMP (1, strength, 8);
@@ -505,8 +499,7 @@ void IN_SetupDSTrigger (qboolean right_trigger)
 
 			*ds_trigger_threshold = (endpos + 1) / 9.f;
 			break;
-		case 2:
-			//"Feedback"
+		case DS_TRIGGER_FEEDBACK:
 			startpos = CLAMP (0, startpos, 9);
 			strength = CLAMP (1, strength, 8);
 
@@ -531,8 +524,7 @@ void IN_SetupDSTrigger (qboolean right_trigger)
 
 			*ds_trigger_threshold = startpos / 9.f;
 			break;
-		case 3:
-			//"Slope"
+		case DS_TRIGGER_SLOPE:
 			startpos = CLAMP (0, startpos, 8);
 			endpos = CLAMP (startpos+1, endpos, 9);
 			slope_start = CLAMP (1, slope_start, 8);
@@ -564,8 +556,7 @@ void IN_SetupDSTrigger (qboolean right_trigger)
 
 			*ds_trigger_threshold = startpos / 9.f;
 			break;
-		case 4:
-			//"Vibration"
+		case DS_TRIGGER_VIBRATION:
 			startpos = CLAMP (0, startpos, 9);
 			strength = CLAMP (1, strength, 8); //Nielk1 specs states it's 0 at minimum, probably typo? 
 
@@ -590,8 +581,7 @@ void IN_SetupDSTrigger (qboolean right_trigger)
 
 			*ds_trigger_threshold = startpos / 9.f;
 			break;
-		case 5:
-			//"Bow"
+		case DS_TRIGGER_BOW:
 			startpos = CLAMP (0, startpos, 7);
 			endpos = CLAMP (startpos+1, endpos, 8);
 			// Specs again say minimal for these two allowed are 0, i'm not sure...
@@ -615,8 +605,7 @@ void IN_SetupDSTrigger (qboolean right_trigger)
 
 			*ds_trigger_threshold = endpos / 9.f;
 			break;
-		case 6:
-			//"Galloping"
+		case DS_TRIGGER_GALLOPING:
 			startpos = CLAMP (0, startpos, 8);
 			endpos = CLAMP (startpos+1, endpos, 9);
 			gallop_firstfoot = CLAMP (0, gallop_firstfoot, 6);
@@ -639,8 +628,7 @@ void IN_SetupDSTrigger (qboolean right_trigger)
 
 			*ds_trigger_threshold = startpos / 9.f;
 			break;
-		case 7:
-			//"Machine"
+		case DS_TRIGGER_MACHINE:
 			startpos = CLAMP (0, startpos, 8);
 			endpos = CLAMP (startpos, endpos, 9);
 			amplitude_a = CLAMP (0, amplitude_a, 7);
@@ -663,9 +651,8 @@ void IN_SetupDSTrigger (qboolean right_trigger)
 
 			*ds_trigger_threshold = startpos / 9.f;
 			break;
-		case 0:
+		case DS_TRIGGER_OFF:
 		default:
-			//"Off"
 			ds_effects_state[trigger_byte_fields +  0] = tm_off;
 			ds_effects_state[trigger_byte_fields +  1] = 0;
 			ds_effects_state[trigger_byte_fields +  2] = 0;
@@ -721,7 +708,7 @@ static void DS_Triggers_cvar_callback (cvar_t *cvar)
 
 static void Joy_DS_Mode_Completion_f (cvar_t *cvar, const char *partial)
 {
-	for (int i = 0; i < NUM_DS_TRIGGER_MODES; i++)
+	for (int i = 0; i < DS_TRIGGER_COUNT; i++)
 		Con_AddToTabList (va ("%d", i), partial, IN_GetDSTriggerModeName (i));
 }
 

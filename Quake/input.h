@@ -53,6 +53,23 @@ qboolean IN_IsCalibratingGyro (void);
 
 qboolean IN_HasLED (void);
 
+typedef enum ds_trigger_mode_t
+{
+	DS_TRIGGER_OFF,
+	DS_TRIGGER_WEAPON,
+	DS_TRIGGER_FEEDBACK,
+	DS_TRIGGER_SLOPE,
+	DS_TRIGGER_VIBRATION,
+	DS_TRIGGER_BOW,
+	DS_TRIGGER_GALLOPING,
+	DS_TRIGGER_MACHINE,
+
+	DS_TRIGGER_COUNT,
+} ds_trigger_mode_t;
+
+qboolean IN_HasAdaptiveTriggers (void);
+const char* IN_GetDSTriggerModeName (int mode);
+
 void IN_ResetCurrentController (void);
 
 qboolean IN_HasGamepad (void);
