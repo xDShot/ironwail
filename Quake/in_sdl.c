@@ -140,7 +140,8 @@ static qboolean gyro_present = false;
 static qboolean gyro_button_pressed = false;
 
 static qboolean led_present = false;
-static vec3_t joy_led;
+static vec3_t joy_led = {0.f, 0.f, 0.f};
+static vec3_t prev_joy_led = {0.f, 0.f, 0.f};
 
 static qboolean ds_triggers_present = false;
 // https://controllers.fandom.com/wiki/Sony_DualSense
@@ -411,7 +412,19 @@ void IN_UpdateLED (void)
 		joy_led[1] = CLAMP(0, joy_led[1], 1);
 		joy_led[2] = CLAMP(0, joy_led[2], 1);
 
-		SDL_GameControllerSetLED (joy_active_controller, joy_led[0] * 255, joy_led[1] * 255, joy_led[2] * 255);
+		qboolean led_changed = false;
+
+		for (int i = 0; i < 3; i++)
+		{
+			if (joy_led[i] != prev_joy_led[i])
+			{
+				led_changed = true;
+				prev_joy_led[i] = joy_led[i];
+			}
+		}
+
+		if (led_changed)
+			SDL_GameControllerSetLED (joy_active_controller, joy_led[0] * 255, joy_led[1] * 255, joy_led[2] * 255);
 	}
 }
 #endif // SDL_VERSION_ATLEAST(2, 0, 14)
