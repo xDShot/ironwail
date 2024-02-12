@@ -352,10 +352,42 @@ void IN_UpdateLED (void)
 
 		#define BLEND_COLOR(color, base_color, add_color, add_scale) \
 		color = base_color + ( add_color - base_color ) * add_scale;
-		
-		// Blend flashes (v_blend from view.c) on top of current color
-		vec3_t v_blend_led = { v_blend[0], v_blend[1], v_blend[2] };
-		float v_blend_scale = pow( sin( v_blend[3] * M_PI ), 0.5);
+
+		// Blend color shifts on top of current color. Doing almost the same as V_CalcBlend from view.c
+		// V_PolyBlend resets v_blend alpha component, on some machines it prevents producing effect.
+		vec3_t v_blend_led = { 0.f, 0.f, 0.f };
+		float v_blend_scale = 0.f;
+		float r, g, b, a, a2;
+
+		r = 0;
+		g = 0;
+		b = 0;
+		a = 0;
+
+		for (int j = 0; j < NUM_CSHIFTS; j++)
+		{
+			//johnfitz -- only apply leaf contents color shifts during intermission
+			if (cl.intermission && j != CSHIFT_CONTENTS)
+				continue;
+			//johnfitz
+
+			a2 = cl.cshifts[j].percent / 255.0;
+			// QuakeSpasm
+			if (!a2)
+				continue;
+			a = a + a2 * (1 - a);
+			a2 = a2 / a;
+			r = r * (1 - a2) + cl.cshifts[j].destcolor[0] * a2;
+			g = g * (1 - a2) + cl.cshifts[j].destcolor[1] * a2;
+			b = b * (1 - a2) + cl.cshifts[j].destcolor[2] * a2;
+		}
+
+		v_blend_led[0] = r / 255;
+		v_blend_led[1] = g / 255;
+		v_blend_led[2] = b / 255;
+		v_blend_scale = CLAMP (0, a, 1);
+
+		v_blend_scale = pow (sin (v_blend_scale * M_PI), 0.5);
 		VectorScale(v_blend_led, v_blend_scale, v_blend_led);
 		BLEND_COLOR( joy_led[0], joy_led[0], v_blend_led[0], v_blend_scale );
 		BLEND_COLOR( joy_led[1], joy_led[1], v_blend_led[1], v_blend_scale );
@@ -366,10 +398,7 @@ void IN_UpdateLED (void)
 		_VectorCopy(joy_led, punch_led);
 		VectorNormalize(punch_led); // Get maximum LED color brightness
 
-		float punchblend = (cl.time - cl.punchtime);// / 0.1f;
-
-		if (punchblend < 0.0f) punchblend = 0.0f;
-		if (punchblend > 1.0f) punchblend = 1.0f;
+		float punchblend = CLAMP (0, (cl.time - cl.punchtime), 1);// / 0.1f;
 		
 		punchblend = (1 - punchblend);// * 0.2;
 		
@@ -378,12 +407,12 @@ void IN_UpdateLED (void)
 		BLEND_COLOR( joy_led[1], joy_led[1], punch_led[1], punchblend );
 		BLEND_COLOR( joy_led[2], joy_led[2], punch_led[2], punchblend );
 
-		CLAMP(0, joy_led[0], 1);
-		CLAMP(0, joy_led[1], 1);
-		CLAMP(0, joy_led[2], 1);
+		joy_led[0] = CLAMP(0, joy_led[0], 1);
+		joy_led[1] = CLAMP(0, joy_led[1], 1);
+		joy_led[2] = CLAMP(0, joy_led[2], 1);
 
 		SDL_GameControllerSetLED (joy_active_controller, joy_led[0] * 255, joy_led[1] * 255, joy_led[2] * 255);
-    }
+	}
 }
 #endif // SDL_VERSION_ATLEAST(2, 0, 14)
 
