@@ -1013,6 +1013,7 @@ void IN_StartupJoystick (void)
 
 void IN_ShutdownJoystick (void)
 {
+	IN_ResetCurrentController ();
 	SDL_QuitSubSystem(SDL_INIT_GAMECONTROLLER);
 }
 

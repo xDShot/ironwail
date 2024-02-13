@@ -79,8 +79,6 @@ typedef enum ds_trigger_mode_t
 qboolean IN_HasAdaptiveTriggers (void);
 const char* IN_GetDSTriggerModeName (int mode);
 
-void IN_ResetCurrentController (void);
-
 qboolean IN_HasGamepad (void);
 const char *IN_GetGamepadName (void);
 void IN_UseNextGamepad (int dir, qboolean allow_disable);

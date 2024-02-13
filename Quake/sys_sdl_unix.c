@@ -763,8 +763,6 @@ void Sys_Printf (const char *fmt, ...)
 
 void Sys_Quit (void)
 {
-	IN_ResetCurrentController ();
-	
 	Host_Shutdown();
 
 	exit (0);
