@@ -173,6 +173,7 @@ enum ds_trigger_state {
 #define DS_RT_BYTES 10
 #define DS_LT_BYTES 21
 static uint8_t ds_effects_state[47] = {0};
+// If we are unable to read triggers status from HID, use these as fallback
 static float ds_rt_threshold = 0;
 static float ds_lt_threshold = 0;
 
@@ -1545,6 +1546,64 @@ void IN_Commands (void)
 			timer = 0.0;
 		}
 	}
+
+#if SDL_VERSION_ATLEAST(2, 0, 18)
+#define DS_REPORT_SIZE_USB 64
+#define DS_REPORT_SIZE_BT 78
+#define DS_REPORT_SIZE_MAX 128
+	uint8_t ds_input_report[DS_REPORT_SIZE_MAX] = { 0 };
+	int state_data_bytes = 1;
+	uint8_t ds_rt_stoplocation = 0;
+	uint8_t ds_rt_status = 0;
+	uint8_t ds_rt_effect = 0;
+	uint8_t ds_lt_stoplocation = 0;
+	uint8_t ds_lt_status = 0;
+	uint8_t ds_lt_effect = 0;
+
+	if (IN_HasAdaptiveTriggers () && hidapi_enabled && joy_active_hid)
+	{
+		int read_bytes = SDL_hid_read (joy_active_hid, ds_input_report, DS_REPORT_SIZE_MAX);
+		if (read_bytes == -1) Con_Warning ("HID Read fail\n");
+		if (read_bytes == 0) Con_Warning ("HID Read no data\n");
+		if (read_bytes > 0)
+		{
+			Con_Printf ("Bytes read %d\n", read_bytes);
+			Con_Printf ("HID ReportID = 0x%x\n", ds_input_report[0]);
+			if (read_bytes == DS_REPORT_SIZE_BT) state_data_bytes = 2; //Bluetooth report contains some other garbage
+			ds_rt_stoplocation = (ds_input_report[state_data_bytes + 41] >> 0) & 0x0f;
+			ds_rt_status       = (ds_input_report[state_data_bytes + 41] >> 4) & 0x0f;
+			ds_lt_stoplocation = (ds_input_report[state_data_bytes + 42] >> 0) & 0x0f;
+			ds_lt_status       = (ds_input_report[state_data_bytes + 42] >> 4) & 0x0f;
+			ds_rt_effect       = (ds_input_report[state_data_bytes + 47] >> 0) & 0x0f;
+			ds_lt_effect       = (ds_input_report[state_data_bytes + 47] >> 4) & 0x0f;
+			Con_Printf ("rt loc %d status %d lt loc %d status %d\n", ds_rt_stoplocation, ds_rt_status, ds_lt_stoplocation, ds_lt_status);
+			Con_Printf ("rt effect 0x%x lt effect 0x%x\n", ds_rt_effect, ds_lt_effect);
+			// Pretend we fully pressed trigger
+			switch (ds_rt_effect)
+			{
+			case 2:
+				newaxisstate.axisvalue[SDL_CONTROLLER_AXIS_TRIGGERRIGHT] = 1.f * (ds_rt_status == 2);
+				break;
+			case 0:
+				break;
+			default:
+				newaxisstate.axisvalue[SDL_CONTROLLER_AXIS_TRIGGERRIGHT] = 1.f * (ds_rt_status > 0);
+				break;
+			}
+			switch (ds_lt_effect)
+			{
+			case 2:
+				newaxisstate.axisvalue[SDL_CONTROLLER_AXIS_TRIGGERLEFT] = 1.f * (ds_lt_status == 2);
+				break;
+			case 0:
+				break;
+			default:
+				newaxisstate.axisvalue[SDL_CONTROLLER_AXIS_TRIGGERLEFT] = 1.f * (ds_lt_status > 0);
+				break;
+			}
+		}
+	}
+#endif
 
 	// emit emulated keys for the analog triggers
 	IN_JoyKeyEvent(joy_axisstate.axisvalue[SDL_CONTROLLER_AXIS_TRIGGERLEFT] > left_triggerthreshold,   newaxisstate.axisvalue[SDL_CONTROLLER_AXIS_TRIGGERLEFT] > left_triggerthreshold,   K_LTRIGGER, &joy_emulatedkeytimer[4]);
