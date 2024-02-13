@@ -116,6 +116,11 @@ static int joy_active_device = -1;
 static SDL_GameController *joy_active_controller = NULL;
 static char joy_active_name[256];
 
+#if SDL_VERSION_ATLEAST(2, 0, 18)
+static qboolean hidapi_enabled = false;
+static SDL_hid_device *joy_active_hid = NULL;
+#endif
+
 static qboolean	no_mouse = false;
 
 static const int buttonremap[] =
@@ -959,6 +964,28 @@ static qboolean IN_UseController (int device_index)
 #endif // SDL_VERSION_ATLEAST(2, 0, 16)
 #endif // SDL_VERSION_ATLEAST(2, 0, 14)
 
+#if SDL_VERSION_ATLEAST(2, 0, 18)
+	SDL_hid_device* hid_device;
+	uint16_t vendor_id;
+	uint16_t product_id;
+
+	if (hidapi_enabled)
+	{
+		SDL_hid_close (joy_active_hid);
+
+		vendor_id = SDL_GameControllerGetVendor (joy_active_controller);
+		product_id = SDL_GameControllerGetProduct (joy_active_controller);
+
+		hid_device = SDL_hid_open (vendor_id, product_id, NULL);
+
+		if (hid_device)
+		{
+			joy_active_hid = hid_device;
+			Con_Printf( "Opened HID for %s\n", joy_active_name );
+		}
+	}
+#endif // SDL_VERSION_ATLEAST(2, 0, 18)
+
 	return true;
 }
 
@@ -1016,10 +1043,29 @@ void IN_StartupJoystick (void)
 	IN_SetupJoystick ();
 }
 
+void IN_StartupHIDAPI (void)
+{
+#if SDL_VERSION_ATLEAST(2, 0, 18)
+	if (SDL_hid_init () == -1)
+	{
+		Con_Warning ("could not initialize SDL HIDAPI\n");
+		return;
+	}
+	hidapi_enabled = true;
+#endif
+}
+
 void IN_ShutdownJoystick (void)
 {
 	IN_ResetCurrentController ();
 	SDL_QuitSubSystem(SDL_INIT_GAMECONTROLLER);
+}
+
+void IN_ShutdownHIDAPI (void)
+{
+#if SDL_VERSION_ATLEAST(2, 0, 18)
+	SDL_hid_exit ();
+#endif
 }
 
 qboolean IN_HasGamepad (void)
@@ -1208,6 +1254,7 @@ void IN_Init (void)
 
 	IN_Activate();
 	IN_StartupJoystick();
+	IN_StartupHIDAPI();
 	Sys_ActivateKeyFilter(true);
 }
 
@@ -1216,6 +1263,7 @@ void IN_Shutdown (void)
 	Sys_ActivateKeyFilter(false);
 	IN_Deactivate(true);
 	IN_ShutdownJoystick();
+	IN_ShutdownHIDAPI();
 }
 
 extern cvar_t cl_maxpitch; /* johnfitz -- variable pitch clamping */
