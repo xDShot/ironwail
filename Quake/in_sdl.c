@@ -141,7 +141,7 @@ static qboolean gyro_button_pressed = false;
 
 static qboolean led_present = false;
 static vec3_t joy_led = {0.f, 0.f, 0.f};
-static vec3_t prev_joy_led = {0.f, 0.f, 0.f};
+static vec3_t prev_joy_led = {-1.f, -1.f, -1.f};
 
 static qboolean ds_triggers_present = false;
 // https://controllers.fandom.com/wiki/Sony_DualSense
@@ -845,6 +845,11 @@ void IN_ResetCurrentController (void)
 {
 	if (!joy_active_controller)
 		return;
+
+	// to enable LED update when switch gamepad back and forth
+	prev_joy_led[0] = -1.f;
+	prev_joy_led[1] = -1.f;
+	prev_joy_led[2] = -1.f;
 #if SDL_VERSION_ATLEAST(2, 0, 16)
 	if (SDL_GameControllerGetType (joy_active_controller) == SDL_CONTROLLER_TYPE_PS5 )
 	{
