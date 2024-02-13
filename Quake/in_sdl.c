@@ -148,13 +148,21 @@ static qboolean ds_triggers_present = false;
 // https://gist.github.com/Nielk1/6d54cc2c00d2201ccb8c2720ad7538db
 // https://github.com/nowrep/dualsensectl
 enum ds_trigger_state {
+	// Official supported modes
 	tm_off = 0x05,
 	tm_feedback = 0x21,
 	tm_bow = 0x22,
 	tm_galloping = 0x23,
 	tm_weapon = 0x25,
+	// Unofficial supported modes
 	tm_vibration = 0x26,
-	tm_machine = 0x27
+	tm_machine = 0x27,
+	// Unofficial bugged modes
+	tm_simple_feedback = 0x01,
+	tm_simple_weapon = 0x02,
+	tm_simple_vibration = 0x06,
+	tm_limited_feedback = 0x11,
+	tm_limited_weapon = 0x12,
 };
 #define DS_ENABLE_BITS1 0
 #define DS_RT_BYTES 10
@@ -450,6 +458,16 @@ const char* IN_GetDSTriggerModeName (int mode)
 			return "Galloping";
 		case DS_TRIGGER_MACHINE:
 			return "Machine";
+		case DS_TRIGGER_SIMPLE_FEEDBACK:
+			return "Simple Feedback (bugged)";
+		case DS_TRIGGER_SIMPLE_WEAPON:
+			return "Simple Weapon (bugged)";
+		case DS_TRIGGER_SIMPLE_VIBRATION:
+			return "Simple Vibration (bugged)";
+		case DS_TRIGGER_LIMITED_FEEDBACK:
+			return "Limited Feedback (bugged)";
+		case DS_TRIGGER_LIMITED_WEAPON:
+			return "Limited Weapon (bugged)";
 	}
 }
 
@@ -692,6 +710,106 @@ void IN_SetupDSTrigger (qboolean right_trigger)
 			ds_effects_state[trigger_byte_fields + 10] = 0;
 
 			*ds_trigger_threshold = startpos / 9.f;
+			break;
+		case DS_TRIGGER_SIMPLE_FEEDBACK:
+			// Parameters don't seem to affect
+			startpos = CLAMP (0, startpos, 9) / 10 * 255;
+			strength = CLAMP (0, strength, 10) / 10 * 255;
+
+			ds_effects_state[trigger_byte_fields +  0] = tm_simple_feedback;
+			ds_effects_state[trigger_byte_fields +  1] = startpos;
+			ds_effects_state[trigger_byte_fields +  2] = strength;
+			ds_effects_state[trigger_byte_fields +  3] = 0;
+			ds_effects_state[trigger_byte_fields +  4] = 0;
+			ds_effects_state[trigger_byte_fields +  5] = 0;
+			ds_effects_state[trigger_byte_fields +  6] = 0;
+			ds_effects_state[trigger_byte_fields +  7] = 0;
+			ds_effects_state[trigger_byte_fields +  8] = 0;
+			ds_effects_state[trigger_byte_fields +  9] = 0;
+			ds_effects_state[trigger_byte_fields + 10] = 0;
+
+			*ds_trigger_threshold = startpos / 255.f;
+			break;
+		case DS_TRIGGER_SIMPLE_WEAPON:
+			// Parameters don't seem to affect
+			startpos = CLAMP (0, startpos, 8) / 10 * 255;
+			endpos = CLAMP (startpos+1, endpos, 9) / 10 * 255;
+			strength = CLAMP (0, strength, 10) / 10 * 255;
+
+			ds_effects_state[trigger_byte_fields +  0] = tm_simple_weapon;
+			ds_effects_state[trigger_byte_fields +  1] = startpos;
+			ds_effects_state[trigger_byte_fields +  2] = endpos;
+			ds_effects_state[trigger_byte_fields +  3] = strength;
+			ds_effects_state[trigger_byte_fields +  4] = 0;
+			ds_effects_state[trigger_byte_fields +  5] = 0;
+			ds_effects_state[trigger_byte_fields +  6] = 0;
+			ds_effects_state[trigger_byte_fields +  7] = 0;
+			ds_effects_state[trigger_byte_fields +  8] = 0;
+			ds_effects_state[trigger_byte_fields +  9] = 0;
+			ds_effects_state[trigger_byte_fields + 10] = 0;
+
+			*ds_trigger_threshold = endpos / 255.f;
+			break;
+		case DS_TRIGGER_SIMPLE_VIBRATION:
+			// Broken, no vibration
+			startpos = CLAMP (0, startpos, 8) / 10 * 255;
+			strength = CLAMP (0, strength, 10) / 10 * 255;
+
+			ds_effects_state[trigger_byte_fields +  0] = tm_simple_vibration;
+			ds_effects_state[trigger_byte_fields +  1] = frequency;
+			ds_effects_state[trigger_byte_fields +  2] = strength;
+			ds_effects_state[trigger_byte_fields +  3] = startpos;
+			ds_effects_state[trigger_byte_fields +  4] = 0;
+			ds_effects_state[trigger_byte_fields +  5] = 0;
+			ds_effects_state[trigger_byte_fields +  6] = 0;
+			ds_effects_state[trigger_byte_fields +  7] = 0;
+			ds_effects_state[trigger_byte_fields +  8] = 0;
+			ds_effects_state[trigger_byte_fields +  9] = 0;
+			ds_effects_state[trigger_byte_fields + 10] = 0;
+
+			*ds_trigger_threshold = startpos / 255.f;
+			break;
+		case DS_TRIGGER_LIMITED_FEEDBACK:
+			// Broken, stops producing effect after first press
+			startpos = CLAMP (0, startpos, 9) / 10 * 255;
+			strength = CLAMP (1, strength, 10) / 10 * 255;
+
+			ds_effects_state[trigger_byte_fields +  0] = tm_limited_feedback;
+			ds_effects_state[trigger_byte_fields +  1] = startpos;
+			ds_effects_state[trigger_byte_fields +  2] = strength;
+			ds_effects_state[trigger_byte_fields +  3] = 0;
+			ds_effects_state[trigger_byte_fields +  4] = 0;
+			ds_effects_state[trigger_byte_fields +  5] = 0;
+			ds_effects_state[trigger_byte_fields +  6] = 0;
+			ds_effects_state[trigger_byte_fields +  7] = 0;
+			ds_effects_state[trigger_byte_fields +  8] = 0;
+			ds_effects_state[trigger_byte_fields +  9] = 0;
+			ds_effects_state[trigger_byte_fields + 10] = 0;
+
+			*ds_trigger_threshold = startpos / 255.f;
+			break;
+		case DS_TRIGGER_LIMITED_WEAPON:
+			// Broken, stops producing effect after first press
+			startpos = CLAMP (0, startpos, 9) / 10 * 255;
+			endpos = CLAMP (0, endpos, 9) / 10 * 255;
+			strength = CLAMP (0, strength, 10) / 10 * 255;
+
+			startpos = CLAMP (16, startpos, 255 - 100 - 16);
+			endpos = CLAMP (startpos, endpos, startpos + 100);
+
+			ds_effects_state[trigger_byte_fields +  0] = tm_limited_weapon;
+			ds_effects_state[trigger_byte_fields +  1] = startpos;
+			ds_effects_state[trigger_byte_fields +  2] = endpos;
+			ds_effects_state[trigger_byte_fields +  3] = strength;
+			ds_effects_state[trigger_byte_fields +  4] = 0;
+			ds_effects_state[trigger_byte_fields +  5] = 0;
+			ds_effects_state[trigger_byte_fields +  6] = 0;
+			ds_effects_state[trigger_byte_fields +  7] = 0;
+			ds_effects_state[trigger_byte_fields +  8] = 0;
+			ds_effects_state[trigger_byte_fields +  9] = 0;
+			ds_effects_state[trigger_byte_fields + 10] = 0;
+
+			*ds_trigger_threshold = endpos / 255.f;
 			break;
 		case DS_TRIGGER_OFF:
 		default:

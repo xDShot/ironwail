@@ -55,16 +55,25 @@ qboolean IN_HasLED (void);
 
 typedef enum ds_trigger_mode_t
 {
+	// Official supported modes
 	DS_TRIGGER_OFF,
 	DS_TRIGGER_WEAPON,
 	DS_TRIGGER_FEEDBACK,
 	DS_TRIGGER_SLOPE,
 	DS_TRIGGER_VIBRATION,
+	// Unofficial supported modes
 	DS_TRIGGER_BOW,
 	DS_TRIGGER_GALLOPING,
 	DS_TRIGGER_MACHINE,
 
 	DS_TRIGGER_COUNT,
+
+	// Unofficial bugged modes, broken
+	DS_TRIGGER_SIMPLE_FEEDBACK,
+	DS_TRIGGER_SIMPLE_WEAPON,
+	DS_TRIGGER_SIMPLE_VIBRATION,
+	DS_TRIGGER_LIMITED_FEEDBACK,
+	DS_TRIGGER_LIMITED_WEAPON,
 } ds_trigger_mode_t;
 
 qboolean IN_HasAdaptiveTriggers (void);
