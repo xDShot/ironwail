@@ -539,8 +539,8 @@ void IN_SetupDSTrigger (qboolean right_trigger)
 	switch (mode)
 	{
 		case DS_TRIGGER_WEAPON:
-			startpos = CLAMP (2, startpos, 7);
-			endpos = CLAMP (startpos + 1, endpos, 8);
+			startpos = CLAMP (2, startpos, 6); // up to 7 is valid
+			endpos = CLAMP (startpos + 1, endpos, 7); // up to 8 is valid
 			strength = CLAMP (1, strength, 8);
 
 			startandstop = (uint16_t)((1 << startpos) | (1 << endpos));
@@ -557,7 +557,7 @@ void IN_SetupDSTrigger (qboolean right_trigger)
 			ds_effects_state[trigger_byte_fields +  9] = 0;
 			ds_effects_state[trigger_byte_fields + 10] = 0;
 
-			*ds_trigger_threshold = (endpos + 1) / 9.f;
+			*ds_trigger_threshold = (endpos+2) / 10.f; //at 8 it fails to trigger
 			break;
 		case DS_TRIGGER_FEEDBACK:
 			startpos = CLAMP (0, startpos, 9);
@@ -582,7 +582,7 @@ void IN_SetupDSTrigger (qboolean right_trigger)
 			ds_effects_state[trigger_byte_fields +  9] = 0;
 			ds_effects_state[trigger_byte_fields + 10] = 0;
 
-			*ds_trigger_threshold = startpos / 9.f;
+			*ds_trigger_threshold = startpos / 10.f;
 			break;
 		case DS_TRIGGER_SLOPE:
 			startpos = CLAMP (0, startpos, 8);
@@ -614,7 +614,7 @@ void IN_SetupDSTrigger (qboolean right_trigger)
 			ds_effects_state[trigger_byte_fields +  9] = 0;
 			ds_effects_state[trigger_byte_fields + 10] = 0;
 
-			*ds_trigger_threshold = startpos / 9.f;
+			*ds_trigger_threshold = startpos / 10.f;
 			break;
 		case DS_TRIGGER_VIBRATION:
 			startpos = CLAMP (0, startpos, 9);
@@ -639,7 +639,7 @@ void IN_SetupDSTrigger (qboolean right_trigger)
 			ds_effects_state[trigger_byte_fields +  9] = frequency;
 			ds_effects_state[trigger_byte_fields + 10] = 0;
 
-			*ds_trigger_threshold = startpos / 9.f;
+			*ds_trigger_threshold = startpos / 10.f;
 			break;
 		case DS_TRIGGER_BOW:
 			startpos = CLAMP (0, startpos, 7);
@@ -663,7 +663,7 @@ void IN_SetupDSTrigger (qboolean right_trigger)
 			ds_effects_state[trigger_byte_fields +  9] = 0;
 			ds_effects_state[trigger_byte_fields + 10] = 0;
 
-			*ds_trigger_threshold = endpos / 9.f;
+			*ds_trigger_threshold = endpos / 10.f;
 			break;
 		case DS_TRIGGER_GALLOPING:
 			startpos = CLAMP (0, startpos, 8);
@@ -686,7 +686,7 @@ void IN_SetupDSTrigger (qboolean right_trigger)
 			ds_effects_state[trigger_byte_fields +  9] = 0;
 			ds_effects_state[trigger_byte_fields + 10] = 0;
 
-			*ds_trigger_threshold = startpos / 9.f;
+			*ds_trigger_threshold = startpos / 10.f;
 			break;
 		case DS_TRIGGER_MACHINE:
 			startpos = CLAMP (0, startpos, 8);
@@ -709,7 +709,7 @@ void IN_SetupDSTrigger (qboolean right_trigger)
 			ds_effects_state[trigger_byte_fields +  9] = 0;
 			ds_effects_state[trigger_byte_fields + 10] = 0;
 
-			*ds_trigger_threshold = startpos / 9.f;
+			*ds_trigger_threshold = startpos / 10.f;
 			break;
 		case DS_TRIGGER_SIMPLE_FEEDBACK:
 			// Parameters don't seem to affect
