@@ -560,7 +560,7 @@ void IN_SetupDSTrigger (qboolean right_trigger)
 			*ds_trigger_threshold = (endpos+2) / 10.f; //at 8 it fails to trigger
 			break;
 		case DS_TRIGGER_FEEDBACK:
-			startpos = CLAMP (0, startpos, 9);
+			startpos = CLAMP (1, startpos, 9); //from 0 is valid, but always triggers as pressed
 			strength = CLAMP (1, strength, 8);
 
 			strength = (strength - 1) & 0x07;
@@ -585,7 +585,7 @@ void IN_SetupDSTrigger (qboolean right_trigger)
 			*ds_trigger_threshold = startpos / 10.f;
 			break;
 		case DS_TRIGGER_SLOPE:
-			startpos = CLAMP (0, startpos, 8);
+			startpos = CLAMP (1, startpos, 8); //from 0 is valid, but always triggers as pressed
 			endpos = CLAMP (startpos+1, endpos, 9);
 			slope_start = CLAMP (1, slope_start, 8);
 			slope_end = CLAMP (1, slope_end, 8);
@@ -689,8 +689,8 @@ void IN_SetupDSTrigger (qboolean right_trigger)
 			*ds_trigger_threshold = startpos / 10.f;
 			break;
 		case DS_TRIGGER_MACHINE:
-			startpos = CLAMP (0, startpos, 8);
-			endpos = CLAMP (startpos, endpos, 9);
+			startpos = CLAMP (1, startpos, 8);
+			endpos = CLAMP (startpos+1, endpos, 9);
 			amplitude_a = CLAMP (0, amplitude_a, 7);
 			amplitude_b = CLAMP (0, amplitude_b, 7);
 
