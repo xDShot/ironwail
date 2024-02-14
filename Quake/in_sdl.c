@@ -83,6 +83,8 @@ cvar_t joy_led_r = {"joy_led_r", "0.3", CVAR_ARCHIVE};
 cvar_t joy_led_g = {"joy_led_g", "0.07", CVAR_ARCHIVE};
 cvar_t joy_led_b = {"joy_led_b", "0.0", CVAR_ARCHIVE};
 
+cvar_t joy_ds_debug = {"joy_ds_debug", "0", CVAR_NONE};
+
 cvar_t joy_ds_rt_mode              = {"joy_ds_rt_mode", "0", CVAR_ARCHIVE};
 cvar_t joy_ds_rt_startpos          = {"joy_ds_rt_startpos", "0", CVAR_ARCHIVE};
 cvar_t joy_ds_rt_endpos            = {"joy_ds_rt_endpos", "0", CVAR_ARCHIVE};
@@ -1194,6 +1196,8 @@ void IN_Init (void)
 	Cvar_RegisterVariable(&joy_led_g);
 	Cvar_RegisterVariable(&joy_led_b);
 
+	Cvar_RegisterVariable(&joy_ds_debug);
+
 	Cvar_RegisterVariable(&joy_ds_rt_mode);
 	Cvar_RegisterVariable(&joy_ds_rt_startpos);
 	Cvar_RegisterVariable(&joy_ds_rt_endpos);
@@ -1547,12 +1551,18 @@ void IN_Commands (void)
 		}
 	}
 
-#if SDL_VERSION_ATLEAST(2, 0, 18)
+	// Read DualSense trigger status nybble from HID input report
+	// If it fails, it falls back to triggers threshold values
+#if SDL_VERSION_ATLEAST(2, 0, 18) //Required for HIDAPI
+#define DS_REPORT_ID_USB 0x1
+#define DS_REPORT_ID_BT 0x31
 #define DS_REPORT_SIZE_USB 64
 #define DS_REPORT_SIZE_BT 78
-#define DS_REPORT_SIZE_MAX 128
+#define DS_REPORT_SIZE_MAX DS_REPORT_SIZE_BT
 	uint8_t ds_input_report[DS_REPORT_SIZE_MAX] = { 0 };
-	int state_data_bytes = 1;
+	int bytes_read = 0; // >1 assumes we have received report
+	int state_data_bytes = 0; // >1 assumes we have correct report id and size
+	uint8_t ds_report_id = 0x0;
 	uint8_t ds_rt_stoplocation = 0;
 	uint8_t ds_rt_status = 0;
 	uint8_t ds_rt_effect = 0;
@@ -1562,48 +1572,61 @@ void IN_Commands (void)
 
 	if (IN_HasAdaptiveTriggers () && hidapi_enabled && joy_active_hid)
 	{
-		int read_bytes = SDL_hid_read (joy_active_hid, ds_input_report, DS_REPORT_SIZE_MAX);
-		if (read_bytes == -1) Con_Warning ("HID Read fail\n");
-		if (read_bytes == 0) Con_Warning ("HID Read no data\n");
-		if (read_bytes > 0)
-		{
-			Con_Printf ("Bytes read %d\n", read_bytes);
-			Con_Printf ("HID ReportID = 0x%x\n", ds_input_report[0]);
-			if (read_bytes == DS_REPORT_SIZE_BT) state_data_bytes = 2; //Bluetooth report contains some other garbage
-			ds_rt_stoplocation = (ds_input_report[state_data_bytes + 41] >> 0) & 0x0f;
-			ds_rt_status       = (ds_input_report[state_data_bytes + 41] >> 4) & 0x0f;
-			ds_lt_stoplocation = (ds_input_report[state_data_bytes + 42] >> 0) & 0x0f;
-			ds_lt_status       = (ds_input_report[state_data_bytes + 42] >> 4) & 0x0f;
-			ds_rt_effect       = (ds_input_report[state_data_bytes + 47] >> 0) & 0x0f;
-			ds_lt_effect       = (ds_input_report[state_data_bytes + 47] >> 4) & 0x0f;
+		bytes_read = SDL_hid_read (joy_active_hid, ds_input_report, DS_REPORT_SIZE_MAX);
+		if ((bytes_read == -1) && (joy_ds_debug.value)) Con_Warning ("HID Read fail\n");
+		if ((bytes_read == 0) && (joy_ds_debug.value)) Con_Warning ("HID Read no data\n");
+	}
+
+	if (bytes_read > 0)
+	{
+		ds_report_id = ds_input_report[0];
+		if (joy_ds_debug.value) {
+			Con_Printf ("Bytes read %d\n", bytes_read);
+			Con_Printf ("HID ReportID = 0x%x\n", ds_report_id);
+		}
+		if (((bytes_read == DS_REPORT_SIZE_USB) && (ds_report_id == DS_REPORT_ID_USB))) state_data_bytes = 1;
+		else if (((bytes_read == DS_REPORT_SIZE_BT) && (ds_report_id == DS_REPORT_ID_BT))) state_data_bytes = 2;
+		else { if (joy_ds_debug.value) Con_Warning ("Incorrect HID report id and size\n"); }
+	}
+
+	if (state_data_bytes > 0)
+	{
+		ds_rt_stoplocation	= (ds_input_report[state_data_bytes + 41] >> 0) & 0x0f;
+		ds_rt_status        = (ds_input_report[state_data_bytes + 41] >> 4) & 0x0f;
+		ds_lt_stoplocation  = (ds_input_report[state_data_bytes + 42] >> 0) & 0x0f;
+		ds_lt_status        = (ds_input_report[state_data_bytes + 42] >> 4) & 0x0f;
+		ds_rt_effect        = (ds_input_report[state_data_bytes + 47] >> 0) & 0x0f;
+		ds_lt_effect        = (ds_input_report[state_data_bytes + 47] >> 4) & 0x0f;
+		if (joy_ds_debug.value) {
 			Con_Printf ("rt loc %d status %d lt loc %d status %d\n", ds_rt_stoplocation, ds_rt_status, ds_lt_stoplocation, ds_lt_status);
 			Con_Printf ("rt effect 0x%x lt effect 0x%x\n", ds_rt_effect, ds_lt_effect);
-			// Pretend we fully pressed trigger
-			switch (ds_rt_effect)
-			{
-			case 2:
-				newaxisstate.axisvalue[SDL_CONTROLLER_AXIS_TRIGGERRIGHT] = 1.f * (ds_rt_status == 2);
-				break;
-			case 0:
-				break;
-			default:
-				newaxisstate.axisvalue[SDL_CONTROLLER_AXIS_TRIGGERRIGHT] = 1.f * (ds_rt_status > 0);
-				break;
-			}
-			switch (ds_lt_effect)
-			{
-			case 2:
-				newaxisstate.axisvalue[SDL_CONTROLLER_AXIS_TRIGGERLEFT] = 1.f * (ds_lt_status == 2);
-				break;
-			case 0:
-				break;
-			default:
-				newaxisstate.axisvalue[SDL_CONTROLLER_AXIS_TRIGGERLEFT] = 1.f * (ds_lt_status > 0);
-				break;
-			}
+		}
+
+		// Pretend we fully pressed trigger
+		switch (ds_rt_effect)
+		{
+		case 2:
+			newaxisstate.axisvalue[SDL_CONTROLLER_AXIS_TRIGGERRIGHT] = 1.f * (ds_rt_status == 2);
+			break;
+		case 0:
+			break;
+		default:
+			newaxisstate.axisvalue[SDL_CONTROLLER_AXIS_TRIGGERRIGHT] = 1.f * (ds_rt_status > 0);
+			break;
+		}
+		switch (ds_lt_effect)
+		{
+		case 2:
+			newaxisstate.axisvalue[SDL_CONTROLLER_AXIS_TRIGGERLEFT] = 1.f * (ds_lt_status == 2);
+			break;
+		case 0:
+			break;
+		default:
+			newaxisstate.axisvalue[SDL_CONTROLLER_AXIS_TRIGGERLEFT] = 1.f * (ds_lt_status > 0);
+			break;
 		}
 	}
-#endif
+#endif //SDL_VERSION_ATLEAST(2, 0, 18)
 
 	// emit emulated keys for the analog triggers
 	IN_JoyKeyEvent(joy_axisstate.axisvalue[SDL_CONTROLLER_AXIS_TRIGGERLEFT] > left_triggerthreshold,   newaxisstate.axisvalue[SDL_CONTROLLER_AXIS_TRIGGERLEFT] > left_triggerthreshold,   K_LTRIGGER, &joy_emulatedkeytimer[4]);
