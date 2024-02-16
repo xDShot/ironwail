@@ -1267,8 +1267,8 @@ void IN_Init (void)
 	Cvar_SetCompletion(&joy_ds_lt_mode, Joy_DS_Mode_Completion_f);
 
 	IN_Activate();
-	IN_StartupJoystick();
 	IN_StartupHIDAPI();
+	IN_StartupJoystick();
 	Sys_ActivateKeyFilter(true);
 }
 
@@ -1276,8 +1276,8 @@ void IN_Shutdown (void)
 {
 	Sys_ActivateKeyFilter(false);
 	IN_Deactivate(true);
-	IN_ShutdownJoystick();
 	IN_ShutdownHIDAPI();
+	IN_ShutdownJoystick();
 }
 
 extern cvar_t cl_maxpitch; /* johnfitz -- variable pitch clamping */
