@@ -1066,8 +1066,8 @@ void SCR_DrawEdictInfo (void)
 	size_t		maxval = 0;
 	size_t		numfields = 1;
 	size_t		len;
-	int			i, x, y;
-	float		scalex, scaley, xmin, ymin, width, height;
+	int			i;
+	float		scalex, scaley, xmin, ymin, width, height, x, y;
 	vec3_t		anchor, proj;
 	edict_t		*ed;
 
@@ -1141,21 +1141,21 @@ void SCR_DrawEdictInfo (void)
 		}
 
 		// Try to keep as much text as possible on screen
-		if (y > ceil (glcanvas.bottom - numfields*CHARSIZE) || r_showfields.value > 0.f)
-			y = ceil (glcanvas.bottom - numfields*CHARSIZE);
-		if (y < floor (glcanvas.top))
-			y = floor (glcanvas.top);
-		if (x > ceil (glcanvas.right - CHARSIZE/2 - maxval*CHARSIZE) || r_showfields.value > 0.f)
-			x = ceil (glcanvas.right - CHARSIZE/2 - maxval*CHARSIZE);
-		if (x < floor (glcanvas.left + CHARSIZE/2 + maxname*CHARSIZE))
-			x = floor (glcanvas.left + CHARSIZE/2 + maxname*CHARSIZE);
+		if (y > glcanvas.bottom - numfields*CHARSIZE || r_showfields.value > 0.f)
+			y = glcanvas.bottom - numfields*CHARSIZE;
+		if (y < glcanvas.top)
+			y = glcanvas.top;
+		if (x > glcanvas.right - CHARSIZE/2 - maxval*CHARSIZE || r_showfields.value > 0.f)
+			x = glcanvas.right - CHARSIZE/2 - maxval*CHARSIZE;
+		if (x < glcanvas.left + CHARSIZE/2 + maxname*CHARSIZE)
+			x = glcanvas.left + CHARSIZE/2 + maxname*CHARSIZE;
 
 		// Draw black background
-		Draw_Fill (x - maxname*CHARSIZE - CHARSIZE/2, y, (maxname + maxval + 1)*CHARSIZE, numfields*CHARSIZE, 0, 0.625f);
+		Draw_FillEx (x - maxname*CHARSIZE - CHARSIZE/2, y, (maxname + maxval + 1)*CHARSIZE, numfields*CHARSIZE, rgb_black, 0.625f);
 
 		// Print edict number
-		Draw_String (x - CHARSIZE/2 - strlen (name) * CHARSIZE, y, name);
-		Draw_String (x + CHARSIZE/2, y, val);
+		Draw_StringEx (x - CHARSIZE/2 - strlen (name) * CHARSIZE, y, CHARSIZE, name);
+		Draw_StringEx (x + CHARSIZE/2, y, CHARSIZE, val);
 		y += CHARSIZE;
 
 		// Print all relevant fields
@@ -1165,8 +1165,8 @@ void SCR_DrawEdictInfo (void)
 			if (!ED_IsRelevantField (ed, d))
 				continue;
 			name = COM_TintString (PR_GetString (d->s_name), tinted, sizeof (tinted));
-			Draw_String (x - CHARSIZE/2 - strlen (name) * CHARSIZE, y, name);
-			Draw_String (x + CHARSIZE/2, y, ED_FieldValueString (ed, d));
+			Draw_StringEx (x - CHARSIZE/2 - strlen (name) * CHARSIZE, y, CHARSIZE, name);
+			Draw_StringEx (x + CHARSIZE/2, y, CHARSIZE, ED_FieldValueString (ed, d));
 			y += CHARSIZE;
 		}
 	}
@@ -1180,18 +1180,18 @@ void SCR_DrawEdictInfo (void)
 		len = q_max (maxname, maxval) * CHARSIZE;
 
 		// Constrain to visible region
-		if (x > ceil (glcanvas.right - len/2))
-			x = ceil (glcanvas.right - len/2);
-		if (x < floor (glcanvas.left + len/2))
-			x = floor (glcanvas.left + len/2);
-		if (y > ceil (glcanvas.bottom - numfields*CHARSIZE))
-			y = ceil (glcanvas.bottom - numfields*CHARSIZE);
-		if (y < floor (glcanvas.top))
-			y = floor (glcanvas.top);
+		if (x > glcanvas.right - len/2)
+			x = glcanvas.right - len/2;
+		if (x < glcanvas.left + len/2)
+			x = glcanvas.left + len/2;
+		if (y > glcanvas.bottom - numfields*CHARSIZE)
+			y = glcanvas.bottom - numfields*CHARSIZE;
+		if (y < glcanvas.top)
+			y = glcanvas.top;
 
-		Draw_Fill (x - len/2, y, len, numfields*CHARSIZE, 0, 0.75f);		// black background
-		Draw_String (x - maxname*CHARSIZE/2, y, name);						// edict number (centered)
-		Draw_String (x - maxval*CHARSIZE/2, y + CHARSIZE, val);				// classname (centered)
+		Draw_FillEx (x - len/2, y, len, numfields*CHARSIZE, rgb_black, 0.75f);		// black background
+		Draw_StringEx (x - maxname*CHARSIZE/2, y, CHARSIZE, name);					// edict number (centered)
+		Draw_StringEx (x - maxval*CHARSIZE/2, y + CHARSIZE, CHARSIZE, val);			// classname (centered)
 	}
 
 done:
