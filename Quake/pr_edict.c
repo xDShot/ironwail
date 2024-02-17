@@ -23,6 +23,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 
+extern edict_t *bbox_focus;
+
 int		type_size[8] = {
 	1,					// ev_void
 	1,	// sizeof(string_t) / 4		// ev_string
@@ -232,8 +234,6 @@ FIXME: walk all entities and NULL out references to this entity
 */
 void ED_Free (edict_t *ed)
 {
-	extern edict_t *bbox_focus;
-
 	if (ed == bbox_focus)
 		bbox_focus = NULL;
 
@@ -1012,6 +1012,25 @@ static void ED_PrintEdict_f (void)
 	}
 	ED_PrintNum (i);
 	PR_PopQCVM(oldqcvm);
+}
+
+/*
+=============
+ED_PrintEdict_Completion_f -- tab completion for the edict command
+=============
+*/
+static void ED_PrintEdict_Completion_f (const char *partial)
+{
+	qcvm_t	*oldqcvm;
+	int		i;
+
+	if (!sv.active || Cmd_Argc () > 2 || !bbox_focus || bbox_focus->free)
+		return;
+
+	PR_PushQCVM (&sv.qcvm, &oldqcvm);
+	i = NUM_FOR_EDICT (bbox_focus);
+	Con_AddToTabList (va ("%d", i), partial, PR_GetString (bbox_focus->v.classname));
+	PR_PopQCVM (oldqcvm);
 }
 
 /*
@@ -2068,7 +2087,11 @@ PR_Init
 */
 void PR_Init (void)
 {
-	Cmd_AddCommand ("edict", ED_PrintEdict_f);
+	cmd_function_t *cmd;
+
+	cmd = Cmd_AddCommand ("edict", ED_PrintEdict_f);
+	if (cmd)
+		cmd->completion = ED_PrintEdict_Completion_f;
 	Cmd_AddCommand ("edicts", ED_PrintEdicts);
 	Cmd_AddCommand ("edictcount", ED_Count);
 	Cmd_AddCommand ("profile", PR_Profile_f);
