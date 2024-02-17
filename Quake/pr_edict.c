@@ -232,6 +232,11 @@ FIXME: walk all entities and NULL out references to this entity
 */
 void ED_Free (edict_t *ed)
 {
+	extern edict_t *bbox_focus;
+
+	if (ed == bbox_focus)
+		bbox_focus = NULL;
+
 	SV_UnlinkEdict (ed);		// unlink from world bsp
 	ED_AddToFreeList (ed);
 
@@ -654,6 +659,48 @@ const char *PR_GlobalStringNoContents (int ofs)
 	return line;
 }
 
+/*
+=============
+ED_IsRelevantField
+
+Returns true if the field should be printed by the edict command:
+- not a _x/_y_z variable
+- non-zero contents
+=============
+*/
+
+qboolean ED_IsRelevantField (edict_t *ed, ddef_t *d)
+{
+	const char	*name;
+	size_t		l;
+	int			*v;
+	int			type;
+	int			i;
+
+	name = PR_GetString (d->s_name);
+	l = strlen (name);
+	if (l > 1 && name[l - 2] == '_')
+		return false;	// skip _x, _y, _z vars
+
+	type = d->type & ~DEF_SAVEGLOBAL;
+	if (type >= NUM_TYPE_SIZES)
+		return false;
+
+	// if the value is still all 0, skip the field
+	v = (int *)((char *)&ed->v + d->ofs*4);
+	for (i = 0; i < type_size[type]; i++)
+		if (v[i])
+			return true;
+
+	return false;
+}
+
+const char *ED_FieldValueString (edict_t *ed, ddef_t *d)
+{
+	int *v = (int *)((char *)&ed->v + d->ofs*4);
+	return PR_ValueString (d->type, (eval_t *)v);
+}
+
 
 /*
 =============
@@ -665,10 +712,7 @@ For debugging
 void ED_Print (edict_t *ed)
 {
 	ddef_t	*d;
-	int		*v;
-	int		i, j, l;
-	const char	*name;
-	int		type;
+	int		i, l;
 	char	field[4096], buf[4096], *p;
 
 	if (ed->free)
@@ -682,28 +726,10 @@ void ED_Print (edict_t *ed)
 	for (i = 1; i < qcvm->progs->numfielddefs; i++)
 	{
 		d = &qcvm->fielddefs[i];
-		name = PR_GetString(d->s_name);
-		l = strlen (name);
-		if (l > 1 && name[l - 2] == '_')
-			continue;	// skip _x, _y, _z vars
-
-		v = (int *)((char *)&ed->v + d->ofs*4);
-
-	// if the value is still all 0, skip the field
-		type = d->type & ~DEF_SAVEGLOBAL;
-
-		if (type >= NUM_TYPE_SIZES)
+		if (!ED_IsRelevantField (ed, d))
 			continue;
 
-		for (j = 0; j < type_size[type]; j++)
-		{
-			if (v[j])
-				break;
-		}
-		if (j == type_size[type])
-			continue;
-
-		q_snprintf (field, sizeof (field), "%-14s %s\n", name, PR_ValueString (d->type, (eval_t *)v)); // johnfitz -- was Con_Printf
+		q_snprintf (field, sizeof (field), "%-14s %s\n", PR_GetString (d->s_name), ED_FieldValueString (ed, d)); // johnfitz -- was Con_Printf
 		l = strlen (field);
 		if (l + 1 > buf + sizeof (buf) - p)
 		{

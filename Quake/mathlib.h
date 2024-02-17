@@ -118,6 +118,8 @@ void ApplyScale(float matrix[16], float x, float y, float z);
 void ApplyTranslation(float matrix[16], float x, float y, float z);
 void MatrixTranspose4x3(const float src[16], float dst[12]);
 
+qboolean RayVsBox (const vec3_t org, const vec3_t rcpdelta, const vec3_t mins, const vec3_t maxs, float *frac);
+
 #define BOX_ON_PLANE_SIDE(emins, emaxs, p)	\
 	(((p)->type < 3)?						\
 	(										\

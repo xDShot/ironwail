@@ -29,6 +29,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 extern	qpic_t		*draw_disc;	// also used on sbar
 extern	qboolean	custom_conchars;
 
+#define CHARSIZE	8
+
 void Draw_Init (void);
 void Draw_Character (int x, int y, int num);
 void Draw_CharacterEx (float x, float y, float dimx, float dimy, int num);

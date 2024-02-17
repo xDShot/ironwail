@@ -100,6 +100,7 @@ cvar_t	r_showtris = {"r_showtris", "0", CVAR_NONE};
 cvar_t	r_showbboxes = {"r_showbboxes", "0", CVAR_NONE};
 cvar_t	r_showbboxes_think = {"r_showbboxes_think", "0", CVAR_NONE}; // 0=show all; 1=thinkers only; -1=non-thinkers only
 cvar_t	r_showbboxes_health = {"r_showbboxes_health", "0", CVAR_NONE}; // 0=show all; 1=healthy only; -1=non-healthy only
+cvar_t	r_showfields = {"r_showfields", "0", CVAR_NONE};
 cvar_t	r_lerpmodels = {"r_lerpmodels", "1", CVAR_ARCHIVE};
 cvar_t	r_lerpmove = {"r_lerpmove", "1", CVAR_ARCHIVE};
 cvar_t	r_nolerp_list = {"r_nolerp_list", "progs/flame.mdl,progs/flame2.mdl,progs/braztall.mdl,progs/brazshrt.mdl,progs/longtrch.mdl,progs/flame_pyre.mdl,progs/v_saw.mdl,progs/v_xfist.mdl,progs/h2stuff/newfire.mdl", CVAR_NONE};
@@ -1116,7 +1117,7 @@ static void R_FlushDebugGeometry (void)
 		GLbyte	*ofs;
 
 		GL_UseProgram (glprogs.debug3d);
-		GL_SetState (GLS_BLEND_OPAQUE | GLS_NO_ZTEST | GLS_NO_ZWRITE | GLS_CULL_NONE | GLS_ATTRIBS(2));
+		GL_SetState (GLS_BLEND_ALPHA | GLS_NO_ZTEST | GLS_NO_ZWRITE | GLS_CULL_NONE | GLS_ATTRIBS(2));
 
 		GL_Upload (GL_ARRAY_BUFFER, debugverts, sizeof (debugverts[0]) * numdebugverts, &buf, &ofs);
 		GL_BindBuffer (GL_ARRAY_BUFFER, buf);
@@ -1249,6 +1250,9 @@ static qboolean R_ShowBoundingBoxesFilter (edict_t *ed)
 	return false;
 }
 
+static edict_t **bbox_edicts = NULL;
+edict_t *bbox_focus = NULL;
+
 /*
 ================
 R_ShowBoundingBoxes -- johnfitz
@@ -1262,11 +1266,17 @@ static void R_ShowBoundingBoxes (void)
 	byte		*pvs;
 	vec3_t		mins,maxs;
 	edict_t		*ed;
-	int			i, mode;
+	int			i, j, mode;
 	uint32_t	color;
 	qcvm_t 		*oldvm;	//in case we ever draw a scene from within csqc.
+	float		dist, bestdist, extend;
+	vec3_t		rcpdelta;
 
-	if (!r_showbboxes.value || cl.maxclients > 1 || !r_drawentities.value || !sv.active)
+	VEC_CLEAR (bbox_edicts);
+	bbox_focus = NULL;
+
+	mode = abs ((int)r_showbboxes.value);
+	if ((!mode && !r_showfields.value) || cl.maxclients > 1 || !r_drawentities.value || !sv.active)
 		return;
 
 	GL_BeginGroup ("Show bounding boxes");
@@ -1275,8 +1285,8 @@ static void R_ShowBoundingBoxes (void)
 	PR_SwitchQCVM(NULL);
 	PR_SwitchQCVM(&sv.qcvm);
 
-	mode = abs ((int)r_showbboxes.value);
-	if (mode >= 2)
+	// Use PVS if r_showbboxes >= 2, or if r_showbboxes is 0 (which means r_showfields is active)
+	if (mode >= 2 || mode == 0)
 	{
 		vec3_t org;
 		VectorAdd (sv_player->v.origin, sv_player->v.view_ofs, org);
@@ -1285,6 +1295,12 @@ static void R_ShowBoundingBoxes (void)
 	else
 		pvs = NULL;
 
+	// Compute ray reciprocal delta
+	for (i = 0; i < 3; i++)
+		rcpdelta[i] = 1.f / (gl_farclip.value * vpn[i]);
+
+	// Iterate over all server entities
+	bestdist = FLT_MAX;
 	for (i=1, ed=NEXT_EDICT(qcvm->edicts) ; i<qcvm->num_edicts ; i++, ed=NEXT_EDICT(ed))
 	{
 		if (ed == sv_player || ed->free)
@@ -1296,9 +1312,23 @@ static void R_ShowBoundingBoxes (void)
 		if (r_showbboxes_health.value && (ed->v.health <= 0) == (r_showbboxes_health.value > 0))
 			continue;
 
+		// Compute bounding box (16 units wide for point entities)
+		extend = VectorCompare (ed->v.mins, ed->v.maxs) ? 8.f : 0.f;
+		for (j = 0; j < 3; j++)
+		{
+			mins[j] = ed->v.origin[j] + ed->v.mins[j] - extend;
+			maxs[j] = ed->v.origin[j] + ed->v.maxs[j] + extend;
+		}
+
+		// Frustum culling
+		if (R_CullBox (mins, maxs))
+			continue;
+
+		// Classname filter
 		if (!R_ShowBoundingBoxesFilter(ed))
 			continue;
 
+		// PVS filter
 		if (pvs)
 		{
 			qboolean inpvs =
@@ -1310,28 +1340,49 @@ static void R_ShowBoundingBoxes (void)
 				continue;
 		}
 
-		if (r_showbboxes.value > 0.f)
+		// Keep track of the closest bounding box intersecting the center ray
+		// Note: if we're inside the box (dist == 0), we ignore this entity
+		if (RayVsBox (r_origin, rcpdelta, mins, maxs, &dist) && dist > 0.f && dist < bestdist)
+		{
+			bestdist = dist;
+			bbox_focus = ed;
+		}
+
+		// Add edict to list
+		VEC_PUSH (bbox_edicts, ed);
+	}
+
+	// Draw all the matching edicts
+	for (i = 0; i < VEC_SIZE (bbox_edicts); i++)
+	{
+		ed = bbox_edicts[i];
+
+		if (ed == bbox_focus)
+			color = 0xffffffff;
+		else if (r_showbboxes.value > 0.f)
 		{
 			int modelindex = (int)ed->v.modelindex;
-			color = 0xff800080;
+			color = 0x7f800080;
 			if (modelindex >= 0 && modelindex < MAX_MODELS && sv.models[modelindex])
 			{
 				switch (sv.models[modelindex]->type)
 				{
-					case mod_brush:  color = 0xffff8080; break;
-					case mod_alias:  color = 0xff408080; break;
-					case mod_sprite: color = 0xff4040ff; break;
+					case mod_brush:  color = 0x7fff8080; break;
+					case mod_alias:  color = 0x7f408080; break;
+					case mod_sprite: color = 0x7f4040ff; break;
 					default:
 						break;
 				}
 			}
 			if (ed->v.health > 0)
-				color = 0xff0000ff;
+				color = 0x7f0000ff;
 		}
+		else if (r_showbboxes.value < 0.f)
+			color = 0x7fffffff;
 		else
-			color = 0xffffffff;
+			color = 0x5f7f7f7f;
 
-		if (ed->v.mins[0] == ed->v.maxs[0] && ed->v.mins[1] == ed->v.maxs[1] && ed->v.mins[2] == ed->v.maxs[2])
+		if (VectorCompare (ed->v.mins, ed->v.maxs))
 		{
 			//point entity
 			R_EmitWirePoint (ed->v.origin, color);
@@ -1344,6 +1395,8 @@ static void R_ShowBoundingBoxes (void)
 			R_EmitWireBox (mins, maxs, color);
 		}
 	}
+
+	VEC_CLEAR (bbox_edicts);
 
 	PR_SwitchQCVM(NULL);
 	PR_SwitchQCVM(oldvm);

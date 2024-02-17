@@ -311,6 +311,8 @@ edict_t *ED_Alloc (void);
 void ED_Free (edict_t *ed);
 void ED_ClearEdict (edict_t *e);
 
+qboolean ED_IsRelevantField (edict_t *ed, ddef_t *d);
+const char *ED_FieldValueString (edict_t *ed, ddef_t *d);
 void ED_Print (edict_t *ed);
 void ED_Write (savedata_t *save, edict_t *ed);
 const char *ED_ParseEdict (const char *data, edict_t *ent);

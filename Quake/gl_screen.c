@@ -116,6 +116,9 @@ extern	cvar_t	crosshair;
 extern	cvar_t	con_notifyfade;
 extern	cvar_t	con_notifyfadetime;
 
+extern	edict_t	*bbox_focus;
+extern	cvar_t	r_showfields;
+
 qboolean	scr_initialized;		// ready to draw
 
 qpic_t		*scr_net;
@@ -1047,6 +1050,154 @@ void SCR_DrawCrosshair (void)
 }
 
 
+/*
+==============
+SCR_DrawEdictInfo
+
+Show info for the highlighted entity with r_showfields/r_showbboxes
+==============
+*/
+void SCR_DrawEdictInfo (void)
+{
+	char		tinted[1024];
+	const char	*name;
+	const char	*val;
+	size_t		maxname = 0;
+	size_t		maxval = 0;
+	size_t		numfields = 1;
+	size_t		len;
+	int			i, x, y;
+	float		scalex, scaley, xmin, ymin, width, height;
+	vec3_t		anchor, proj;
+	edict_t		*ed;
+
+	if (!bbox_focus)
+		return;
+	ed = bbox_focus;
+
+	GL_SetCanvas (CANVAS_MENU);
+
+	// Map view rect to canvas
+	// Note: canvas Y increases from top to bottom, GL Y is bottom to top
+	width = r_refdef.vrect.width / (float)glwidth * (glcanvas.right - glcanvas.left);
+	height = r_refdef.vrect.height / (float)glheight * (glcanvas.top - glcanvas.bottom);
+	xmin = glcanvas.left + (r_refdef.vrect.x / (float)glwidth) * (glcanvas.right - glcanvas.left);
+	ymin = glcanvas.bottom - ((glheight - r_refdef.vrect.y - r_refdef.vrect.height) / (float)glheight) * (glcanvas.bottom - glcanvas.top);
+
+	// Set up perspective projection
+	scalex = tan (DEG2RAD (r_refdef.fov_x) * 0.5f);
+	scaley = tan (DEG2RAD (r_refdef.fov_y) * 0.5f);
+
+	PR_SwitchQCVM (&sv.qcvm);
+
+	// Compute anchor point (edict center bottom)
+	anchor[0] = (ed->v.mins[0] + ed->v.maxs[0]) * 0.5f;
+	anchor[1] = (ed->v.mins[1] + ed->v.maxs[1]) * 0.5f;
+	anchor[2] = ed->v.mins[2];
+	VectorAdd (anchor, ed->v.origin, anchor);
+	// If it's a point entity, move anchor point down by 8 units to avoid overlapping debug visualization
+	if (VectorCompare (ed->v.mins, ed->v.maxs))
+		anchor[2] -= 8.f;
+
+	// Transform anchor to view space
+	VectorSubtract (anchor, r_origin, anchor);
+	proj[2] = DotProduct (anchor, vpn);
+	if (proj[2] <= 8.f)
+		goto done;
+	proj[0] = DotProduct (anchor, vright);
+	proj[1] = DotProduct (anchor, vup);
+
+	// Apply perspective projection
+	proj[0] /= scalex * proj[2];
+	proj[1] /= scaley * proj[2];
+
+	// Normalize XY coordinates (-1..1 to 0..1)
+	proj[0] = proj[0] * 0.5f + 0.5f;
+	proj[1] = proj[1] * 0.5f + 0.5f;
+
+	// NDC to canvas
+	x = xmin + proj[0] * width;
+	y = ymin + proj[1] * height;
+
+	if (r_showfields.value) // show all entity fields
+	{
+		// Header
+		name = "Edict";
+		val = va ("%d", NUM_FOR_EDICT (ed));
+		maxname = strlen (name);
+		maxval = strlen (val);
+
+		// Measure relevant fields
+		for (i = 1; i < qcvm->progs->numfielddefs; i++)
+		{
+			ddef_t *d = &qcvm->fielddefs[i];
+			if (!ED_IsRelevantField (ed, d))
+				continue;
+			numfields++;
+			len = strlen (PR_GetString (d->s_name));
+			maxname = q_max (maxname, len);
+			len = strlen (ED_FieldValueString (ed, d));
+			maxval = q_max (maxval, len);
+		}
+
+		// Try to keep as much text as possible on screen
+		if (y > ceil (glcanvas.bottom - numfields*CHARSIZE) || r_showfields.value > 0.f)
+			y = ceil (glcanvas.bottom - numfields*CHARSIZE);
+		if (y < floor (glcanvas.top))
+			y = floor (glcanvas.top);
+		if (x > ceil (glcanvas.right - CHARSIZE/2 - maxval*CHARSIZE) || r_showfields.value > 0.f)
+			x = ceil (glcanvas.right - CHARSIZE/2 - maxval*CHARSIZE);
+		if (x < floor (glcanvas.left + CHARSIZE/2 + maxname*CHARSIZE))
+			x = floor (glcanvas.left + CHARSIZE/2 + maxname*CHARSIZE);
+
+		// Draw black background
+		Draw_Fill (x - maxname*CHARSIZE - CHARSIZE/2, y, (maxname + maxval + 1)*CHARSIZE, numfields*CHARSIZE, 0, 0.625f);
+
+		// Print edict number
+		Draw_String (x - CHARSIZE/2 - strlen (name) * CHARSIZE, y, name);
+		Draw_String (x + CHARSIZE/2, y, val);
+		y += CHARSIZE;
+
+		// Print all relevant fields
+		for (i = 1; i < qcvm->progs->numfielddefs; i++)
+		{
+			ddef_t *d = &qcvm->fielddefs[i];
+			if (!ED_IsRelevantField (ed, d))
+				continue;
+			name = COM_TintString (PR_GetString (d->s_name), tinted, sizeof (tinted));
+			Draw_String (x - CHARSIZE/2 - strlen (name) * CHARSIZE, y, name);
+			Draw_String (x + CHARSIZE/2, y, ED_FieldValueString (ed, d));
+			y += CHARSIZE;
+		}
+	}
+	else // r_showfields is 0, only show edict number and classname
+	{
+		name = va ("edict %d", NUM_FOR_EDICT (ed));
+		val = PR_GetString (ed->v.classname);
+		maxname = strlen (name);
+		maxval = strlen (val);
+		numfields = 1 + (maxval != 0); // single line background box if classname is empty
+		len = q_max (maxname, maxval) * CHARSIZE;
+
+		// Constrain to visible region
+		if (x > ceil (glcanvas.right - len/2))
+			x = ceil (glcanvas.right - len/2);
+		if (x < floor (glcanvas.left + len/2))
+			x = floor (glcanvas.left + len/2);
+		if (y > ceil (glcanvas.bottom - numfields*CHARSIZE))
+			y = ceil (glcanvas.bottom - numfields*CHARSIZE);
+		if (y < floor (glcanvas.top))
+			y = floor (glcanvas.top);
+
+		Draw_Fill (x - len/2, y, len, numfields*CHARSIZE, 0, 0.75f);		// black background
+		Draw_String (x - maxname*CHARSIZE/2, y, name);						// edict number (centered)
+		Draw_String (x - maxval*CHARSIZE/2, y + CHARSIZE, val);				// classname (centered)
+	}
+
+done:
+	PR_SwitchQCVM (NULL);
+}
+
 
 //=============================================================================
 
@@ -1699,6 +1850,7 @@ void SCR_UpdateScreen (void)
 		SCR_CheckDrawCenterString ();
 		Sbar_Draw ();
 		SCR_DrawDevStats (); //johnfitz
+		SCR_DrawEdictInfo ();
 		SCR_DrawClock (); //johnfitz
 		SCR_DrawDemoControls ();
 		SCR_DrawSpeed ();

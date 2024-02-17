@@ -789,3 +789,33 @@ void MatrixTranspose4x3(const float src[16], float dst[12])
 
 	#undef COPY_ROW
 }
+
+qboolean RayVsBox (const vec3_t org, const vec3_t rcpdelta, const vec3_t mins, const vec3_t maxs, float *frac)
+{
+	int		i;
+	float	enter, exit;
+
+	if (frac)
+		*frac = 1.f;
+
+	enter = 0.f;
+	exit = 1.f;
+
+	for (i = 0; i < 3; i++)
+	{
+		float t0 = (mins[i] - org[i]) * rcpdelta[i];
+		float t1 = (maxs[i] - org[i]) * rcpdelta[i];
+		float tmin = q_min (t0, t1);
+		float tmax = q_max (t0, t1);
+		enter = q_max (enter, tmin);
+		exit = q_min (exit, tmax);
+	}
+
+	if (enter > exit)
+		return false;
+
+	if (frac)
+		*frac = enter;
+
+	return true;
+}
