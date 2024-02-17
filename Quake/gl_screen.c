@@ -1115,7 +1115,7 @@ void SCR_DrawEdictInfo (void)
 	proj[0] = proj[0] * 0.5f + 0.5f;
 	proj[1] = proj[1] * 0.5f + 0.5f;
 
-	// NDC to canvas
+	// 0..1 to canvas coordinates
 	x = xmin + proj[0] * width;
 	y = ymin + proj[1] * height;
 
