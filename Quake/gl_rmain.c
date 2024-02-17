@@ -1353,7 +1353,7 @@ static void R_ShowBoundingBoxes (void)
 	}
 
 	// Draw all the matching edicts
-	for (i = 0; i < VEC_SIZE (bbox_edicts); i++)
+	for (i = 0; i < (int) VEC_SIZE (bbox_edicts); i++)
 	{
 		ed = bbox_edicts[i];
 
