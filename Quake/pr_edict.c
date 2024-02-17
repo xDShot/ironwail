@@ -415,6 +415,15 @@ eval_t *GetEdictFieldValueByName(edict_t *ed, const char *name)
 	return GetEdictFieldValue(ed, ED_FindFieldOffset(name));
 }
 
+/*
+============
+PR_FloatFormat
+============
+*/
+static const char *PR_FloatFormat (float f)
+{
+	return fabs (f - round (f)) < 0.05f ? "% 5.0f  " : "% 7.1f";
+}
 
 /*
 ============
@@ -427,6 +436,7 @@ Returns a string describing *data in a type specific manner
 static const char *PR_ValueString (int type, eval_t *val)
 {
 	static char	line[512];
+	char		fmt[64];
 	ddef_t		*def;
 	dfunction_t	*f;
 
@@ -452,10 +462,13 @@ static const char *PR_ValueString (int type, eval_t *val)
 		q_snprintf (line, sizeof(line), "void");
 		break;
 	case ev_float:
-		q_snprintf (line, sizeof(line), "%5.1f", val->_float);
+		// Note: leading space, so that float fields are aligned with the first value in vector fields
+		q_snprintf (fmt, sizeof(fmt), " %s", PR_FloatFormat (val->_float));
+		q_snprintf (line, sizeof(line), fmt, val->_float);
 		break;
 	case ev_vector:
-		q_snprintf (line, sizeof(line), "'%5.1f %5.1f %5.1f'", val->vector[0], val->vector[1], val->vector[2]);
+		q_snprintf (fmt, sizeof(fmt), "'%s %s %s'", PR_FloatFormat (val->vector[0]), PR_FloatFormat (val->vector[1]), PR_FloatFormat (val->vector[2]));
+		q_snprintf (line, sizeof(line), fmt, val->vector[0], val->vector[1], val->vector[2]);
 		break;
 	case ev_pointer:
 		q_snprintf (line, sizeof(line), "pointer");
@@ -668,7 +681,6 @@ Returns true if the field should be printed by the edict command:
 - non-zero contents
 =============
 */
-
 qboolean ED_IsRelevantField (edict_t *ed, ddef_t *d)
 {
 	const char	*name;
@@ -695,10 +707,159 @@ qboolean ED_IsRelevantField (edict_t *ed, ddef_t *d)
 	return false;
 }
 
+/*
+=============
+ED_AppendFlagString
+=============
+*/
+static void ED_AppendFlagString (char *dst, size_t dstsize, const char *desc)
+{
+	if (*dst)
+		q_strlcat (dst, " | ", dstsize);
+	q_strlcat (dst, desc, dstsize);
+}
+
+/*
+=============
+ED_FieldValueString
+=============
+*/
 const char *ED_FieldValueString (edict_t *ed, ddef_t *d)
 {
-	int *v = (int *)((char *)&ed->v + d->ofs*4);
-	return PR_ValueString (d->type, (eval_t *)v);
+	static char str[1024];
+	int ofs = d->ofs*4;
+	eval_t *val = (eval_t *)((char *)&ed->v + ofs);
+
+	// .movetype
+	if (ofs == offsetof (entvars_t, movetype) && val->_float == (int)val->_float)
+	{
+		switch ((int)val->_float)
+		{
+		#define MOVETYPE_CASE(x)	case x: return #x
+		MOVETYPE_CASE (MOVETYPE_NONE);
+		MOVETYPE_CASE (MOVETYPE_ANGLENOCLIP);
+		MOVETYPE_CASE (MOVETYPE_ANGLECLIP);
+		MOVETYPE_CASE (MOVETYPE_WALK);
+		MOVETYPE_CASE (MOVETYPE_STEP);
+		MOVETYPE_CASE (MOVETYPE_FLY);
+		MOVETYPE_CASE (MOVETYPE_TOSS);
+		MOVETYPE_CASE (MOVETYPE_PUSH);
+		MOVETYPE_CASE (MOVETYPE_NOCLIP);
+		MOVETYPE_CASE (MOVETYPE_FLYMISSILE);
+		MOVETYPE_CASE (MOVETYPE_BOUNCE);
+		MOVETYPE_CASE (MOVETYPE_GIB);
+		#undef MOVETYPE_CASE
+		default:
+			break;
+		}
+	}
+
+	// .solid
+	if (ofs == offsetof (entvars_t, solid) && val->_float == (int)val->_float)
+	{
+		switch ((int)val->_float)
+		{
+		#define SOLID_CASE(x)	case x: return #x
+		SOLID_CASE (SOLID_NOT);
+		SOLID_CASE (SOLID_TRIGGER);
+		SOLID_CASE (SOLID_BBOX);
+		SOLID_CASE (SOLID_SLIDEBOX);
+		SOLID_CASE (SOLID_BSP);
+		#undef SOLID_CASE
+		default:
+			break;
+		}
+	}
+
+	// .deadflag
+	if (ofs == offsetof (entvars_t, deadflag) && val->_float == (int)val->_float)
+	{
+		switch ((int)val->_float)
+		{
+		#define DEAD_CASE(x)	case x: return #x
+		DEAD_CASE (DEAD_NO);
+		DEAD_CASE (DEAD_DYING);
+		DEAD_CASE (DEAD_DEAD);
+		DEAD_CASE (DEAD_RESPAWNABLE);
+		#undef DEAD_CASE
+		default:
+			break;
+		}
+	}
+
+	// .takedamage
+	if (ofs == offsetof (entvars_t, takedamage) && val->_float == (int)val->_float)
+	{
+		switch ((int)val->_float)
+		{
+		#define TAKEDAMAGE_CASE(x)	case x: return #x
+		TAKEDAMAGE_CASE (DAMAGE_NO);
+		TAKEDAMAGE_CASE (DAMAGE_YES);
+		TAKEDAMAGE_CASE (DAMAGE_AIM);
+		#undef TAKEDAMAGE_CASE
+		default:
+			break;
+		}
+	}
+
+	// bitfield: .flags, .spawnflags, .effects
+	if ((ofs == offsetof (entvars_t, flags) || ofs == offsetof (entvars_t, spawnflags) || ofs == offsetof (entvars_t, effects)) && val->_float == (int)val->_float)
+	{
+		int bits = (int)val->_float;
+		str[0] = '\0';
+
+		#define BIT_CASE(f) do { if (bits & (int)f) { bits ^= (int)f; ED_AppendFlagString (str, sizeof (str), #f); } } while (0)
+
+		if (ofs == offsetof (entvars_t, flags))
+		{
+			BIT_CASE (FL_FLY);
+			BIT_CASE (FL_CONVEYOR);
+			BIT_CASE (FL_CLIENT);
+			BIT_CASE (FL_INWATER);
+			BIT_CASE (FL_MONSTER);
+			BIT_CASE (FL_GODMODE);
+			BIT_CASE (FL_NOTARGET);
+			BIT_CASE (FL_ITEM);
+			BIT_CASE (FL_ONGROUND);
+			BIT_CASE (FL_PARTIALGROUND);
+			BIT_CASE (FL_WATERJUMP);
+			BIT_CASE (FL_JUMPRELEASED);
+		}
+		else if (ofs == offsetof (entvars_t, spawnflags))
+		{
+			BIT_CASE (SPAWNFLAG_NOT_EASY);
+			BIT_CASE (SPAWNFLAG_NOT_MEDIUM);
+			BIT_CASE (SPAWNFLAG_NOT_HARD);
+			BIT_CASE (SPAWNFLAG_NOT_DEATHMATCH);
+		}
+		else if (ofs == offsetof (entvars_t, effects))
+		{
+			BIT_CASE (EF_BRIGHTFIELD);
+			BIT_CASE (EF_MUZZLEFLASH);
+			BIT_CASE (EF_BRIGHTLIGHT);
+			BIT_CASE (EF_DIMLIGHT);
+		}
+
+		#undef BIT_CASE
+
+		while (bits)
+		{
+			int lowest = bits & -bits;
+			bits ^= lowest;
+			ED_AppendFlagString (str, sizeof (str), va ("%d", lowest));
+		}
+
+		return str;
+	}
+
+	// .nextthink
+	if (ofs == offsetof (entvars_t, nextthink) && val->_float)
+	{
+		return va (" %7.1f (%+.2f)", val->_float, val->_float - qcvm->time);
+	}
+
+	// generic field
+	return PR_ValueString (d->type, val);
 }
 
 
