@@ -826,7 +826,7 @@ static void Mod_LoadLighting (lump_t *l)
 					return;
 				}
 				Hunk_FreeToLowMark(mark);
-				Con_Printf("Outdated .lit file (%s should be %u bytes, not %u)\n", litfilename, 8+l->filelen*3, com_filesize);
+				Con_Printf("Outdated .lit file (%s should be %u bytes, not %lli)\n", litfilename, 8+l->filelen*3, com_filesize);
 			}
 			else
 			{

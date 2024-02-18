@@ -375,7 +375,7 @@ typedef struct searchpath_s
 extern searchpath_t *com_searchpaths;
 extern searchpath_t *com_base_searchpaths;
 
-extern THREAD_LOCAL int com_filesize;
+extern THREAD_LOCAL qfileofs_t com_filesize;
 struct cache_user_s;
 
 #define MAX_BASEDIRS 64

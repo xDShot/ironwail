@@ -1583,7 +1583,7 @@ QUAKE FILESYSTEM
 =============================================================================
 */
 
-THREAD_LOCAL int com_filesize;
+THREAD_LOCAL qfileofs_t com_filesize;
 
 
 //
@@ -1782,14 +1782,14 @@ void COM_CreatePath (char *path)
 COM_filelength
 ================
 */
-long COM_filelength (FILE *f)
+qfileofs_t COM_filelength (FILE *f)
 {
-	long		pos, end;
+	qfileofs_t	pos, end;
 
-	pos = ftell (f);
-	fseek (f, 0, SEEK_END);
-	end = ftell (f);
-	fseek (f, pos, SEEK_SET);
+	pos = Sys_ftell (f);
+	Sys_fseek (f, 0, SEEK_END);
+	end = Sys_ftell (f);
+	Sys_fseek (f, pos, SEEK_SET);
 
 	return end;
 }
