@@ -192,6 +192,11 @@ static int ds_report_offset = 0; // >0 assumes we have correct report id and siz
 static int ds_rt_nybble = -1;
 static int ds_lt_nybble = -1;
 
+#if SDL_VERSION_ATLEAST(2, 0, 18)
+static SDL_atomic_t		hid_read_cancel;
+static SDL_Thread*		hid_read_thread;
+#endif
+
 static int SDLCALL IN_FilterMouseEvents (const SDL_Event *event)
 {
 	switch (event->type)
@@ -898,6 +903,37 @@ static void Joy_DS_Mode_Completion_f (cvar_t *cvar, const char *partial)
 		Con_AddToTabList (va ("%d", i), partial, IN_GetDSTriggerModeName (i));
 }
 
+#if SDL_VERSION_ATLEAST(2, 0, 18) //Required for HIDAPI
+static int Read_HID (void* unused)
+{
+	while (!(SDL_AtomicGet (&hid_read_cancel)))
+	{
+		// Read DualSense HID input report
+		uint8_t ds_report_id = 0x0;
+
+		if (IN_HasAdaptiveTriggers () && hidapi_init && joy_active_hid)
+		{
+			ds_report_size = SDL_hid_read (joy_active_hid, ds_input_report, DS_REPORT_SIZE_MAX);
+			if ((ds_report_size == -1) && (joy_ds_debug.value)) Con_Warning ("HID Read fail\n");
+			if ((ds_report_size == 0) && (joy_ds_debug.value)) Con_Warning ("HID Read no data\n");
+		}
+
+		if (ds_report_size > 0)
+		{
+			ds_report_id = ds_input_report[0];
+			if (joy_ds_debug.value >= 2) {
+				Con_Printf ("Bytes read %d\n", ds_report_size);
+				Con_Printf ("HID ReportID = 0x%x\n", ds_report_id);
+			}
+			if (((ds_report_size == DS_REPORT_SIZE_USB) && (ds_report_id == DS_REPORT_ID_USB))) ds_report_offset = 1;
+			else if (((ds_report_size == DS_REPORT_SIZE_BT) && (ds_report_id == DS_REPORT_ID_BT))) ds_report_offset = 2;
+			else { if (joy_ds_debug.value) Con_Warning ("Incorrect HID report id and size\n"); }
+		}
+	}
+	return 0;
+}
+#endif //SDL_VERSION_ATLEAST(2, 0, 18)
+
 static qboolean IN_UseController (int device_index)
 {
 	SDL_GameController *gamecontroller;
@@ -925,6 +961,11 @@ static qboolean IN_UseController (int device_index)
 		gyro_yaw = gyro_pitch = 0.f;
 		led_present = false;
 		ds_triggers_present = false;
+#if SDL_VERSION_ATLEAST(2, 0, 18)
+		SDL_AtomicSet (&hid_read_cancel, 1);
+		SDL_WaitThread (hid_read_thread, NULL);
+		hid_read_thread = NULL;
+#endif
 	}
 
 	if (device_index == -1)
@@ -987,6 +1028,9 @@ static qboolean IN_UseController (int device_index)
 
 	if (hidapi_init)
 	{
+		SDL_AtomicSet (&hid_read_cancel, 1);
+		SDL_WaitThread (hid_read_thread, NULL);
+		hid_read_thread = NULL;
 		SDL_hid_close (joy_active_hid);
 
 		vendor_id = SDL_GameControllerGetVendor (joy_active_controller);
@@ -997,7 +1041,10 @@ static qboolean IN_UseController (int device_index)
 		if (hid_device)
 		{
 			joy_active_hid = hid_device;
-			Con_Printf( "Opened HID for %s\n", joy_active_name );
+			Con_Printf ("Opened HID for %s\n", joy_active_name);
+
+			SDL_AtomicSet (&hid_read_cancel, 0);
+			hid_read_thread = SDL_CreateThread (Read_HID, "HID Read Thread", NULL);
 		}
 	}
 #endif // SDL_VERSION_ATLEAST(2, 0, 18)
@@ -1080,6 +1127,9 @@ void IN_ShutdownJoystick (void)
 void IN_ShutdownHIDAPI (void)
 {
 #if SDL_VERSION_ATLEAST(2, 0, 18)
+	SDL_AtomicSet (&hid_read_cancel, 1);
+	SDL_WaitThread (hid_read_thread, NULL);
+	hid_read_thread = NULL;
 	SDL_hid_exit ();
 #endif
 }
@@ -1581,7 +1631,7 @@ void IN_Commands (void)
 		ds_lt_status       = (ds_input_report[ds_report_offset + 42] >> 4) & 0x0f;
 		ds_rt_effect       = (ds_input_report[ds_report_offset + 47] >> 0) & 0x0f;
 		ds_lt_effect       = (ds_input_report[ds_report_offset + 47] >> 4) & 0x0f;
-		if (joy_ds_debug.value) {
+		if (joy_ds_debug.value >= 3) {
 			Con_Printf ("rt loc %d status %d lt loc %d status %d\n", ds_rt_stoplocation, ds_rt_status, ds_lt_stoplocation, ds_lt_status);
 			Con_Printf ("rt effect 0x%x lt effect 0x%x\n", ds_rt_effect, ds_lt_effect);
 		}
@@ -2145,35 +2195,6 @@ void IN_SendKeyEvents (void)
 			break;
 
 #endif // SDL_VERSION_ATLEAST(2, 0, 14)
-
-#if SDL_VERSION_ATLEAST(2, 0, 18) //Required for HIDAPI
-		// Read DualSense HID input report
-		case SDL_CONTROLLERAXISMOTION:
-			if (event.caxis.which != joy_active_instanceid) break;
-			if (event.caxis.axis < SDL_CONTROLLER_AXIS_TRIGGERLEFT) break;
-
-			uint8_t ds_report_id = 0x0;
-
-			if (IN_HasAdaptiveTriggers () && hidapi_init && joy_active_hid)
-			{
-				ds_report_size = SDL_hid_read (joy_active_hid, ds_input_report, DS_REPORT_SIZE_MAX);
-				if ((ds_report_size == -1) && (joy_ds_debug.value)) Con_Warning ("HID Read fail\n");
-				if ((ds_report_size == 0) && (joy_ds_debug.value)) Con_Warning ("HID Read no data\n");
-			}
-
-			if (ds_report_size > 0)
-			{
-				ds_report_id = ds_input_report[0];
-				if (joy_ds_debug.value) {
-					Con_Printf ("Bytes read %d\n", ds_report_size);
-					Con_Printf ("HID ReportID = 0x%x\n", ds_report_id);
-				}
-				if (((ds_report_size == DS_REPORT_SIZE_USB) && (ds_report_id == DS_REPORT_ID_USB))) ds_report_offset = 1;
-				else if (((ds_report_size == DS_REPORT_SIZE_BT) && (ds_report_id == DS_REPORT_ID_BT))) ds_report_offset = 2;
-				else { if (joy_ds_debug.value) Con_Warning ("Incorrect HID report id and size\n"); }
-			}
-			break;
-#endif //SDL_VERSION_ATLEAST(2, 0, 18)
 
 		case SDL_CONTROLLERDEVICEADDED:
 			if (!IN_RemapJoystick ())
