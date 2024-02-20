@@ -1067,7 +1067,7 @@ void SCR_DrawEdictInfo (void)
 	size_t		numfields = 1;
 	size_t		len;
 	int			i;
-	float		scalex, scaley, xmin, ymin, width, height, x, y;
+	float		xmin, ymin, width, height, x, y;
 	vec3_t		anchor, proj;
 	edict_t		*ed;
 
@@ -1084,10 +1084,6 @@ void SCR_DrawEdictInfo (void)
 	xmin = glcanvas.left + (r_refdef.vrect.x / (float)glwidth) * (glcanvas.right - glcanvas.left);
 	ymin = glcanvas.bottom - ((glheight - r_refdef.vrect.y - r_refdef.vrect.height) / (float)glheight) * (glcanvas.bottom - glcanvas.top);
 
-	// Set up perspective projection
-	scalex = tan (DEG2RAD (r_refdef.fov_x) * 0.5f);
-	scaley = tan (DEG2RAD (r_refdef.fov_y) * 0.5f);
-
 	PR_SwitchQCVM (&sv.qcvm);
 
 	// Compute anchor point (edict center bottom)
@@ -1099,17 +1095,10 @@ void SCR_DrawEdictInfo (void)
 	if (VectorCompare (ed->v.mins, ed->v.maxs))
 		anchor[2] -= 8.f;
 
-	// Transform anchor to view space
-	VectorSubtract (anchor, r_origin, anchor);
-	proj[2] = DotProduct (anchor, vpn);
+	// Apply perspective projection
+	ProjectVector (anchor, r_matviewproj, proj);
 	if (proj[2] <= 8.f)
 		goto done;
-	proj[0] = DotProduct (anchor, vright);
-	proj[1] = DotProduct (anchor, vup);
-
-	// Apply perspective projection
-	proj[0] /= scalex * proj[2];
-	proj[1] /= scaley * proj[2];
 
 	// Normalize XY coordinates (-1..1 to 0..1)
 	proj[0] = proj[0] * 0.5f + 0.5f;

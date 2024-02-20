@@ -775,6 +775,40 @@ void ApplyTranslation(float matrix[16], float x, float y, float z)
 #endif
 }
 
+/*
+=============
+ProjectVector
+=============
+*/
+void ProjectVector(const vec3_t src, const float matrix[16], vec3_t dst)
+{
+	vec4_t proj;
+
+	proj[0] = matrix[3*4 + 0];
+	proj[1] = matrix[3*4 + 1];
+	proj[2] = matrix[3*4 + 2];
+	proj[3] = matrix[3*4 + 3];
+
+	proj[0] += src[0]*matrix[0*4 + 0];
+	proj[1] += src[0]*matrix[0*4 + 1];
+	proj[2] += src[0]*matrix[0*4 + 2];
+	proj[3] += src[0]*matrix[0*4 + 3];
+
+	proj[0] += src[1]*matrix[1*4 + 0];
+	proj[1] += src[1]*matrix[1*4 + 1];
+	proj[2] += src[1]*matrix[1*4 + 2];
+	proj[3] += src[1]*matrix[1*4 + 3];
+
+	proj[0] += src[2]*matrix[2*4 + 0];
+	proj[1] += src[2]*matrix[2*4 + 1];
+	proj[2] += src[2]*matrix[2*4 + 2];
+	proj[3] += src[2]*matrix[2*4 + 3];
+
+	dst[0] = proj[0] / proj[3];
+	dst[1] = proj[1] / proj[3];
+	dst[2] = proj[3];
+}
+
 void MatrixTranspose4x3(const float src[16], float dst[12])
 {
 	#define COPY_ROW(row)					\

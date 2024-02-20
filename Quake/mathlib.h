@@ -117,6 +117,7 @@ void IdentityMatrix(float matrix[16]);
 void ApplyScale(float matrix[16], float x, float y, float z);
 void ApplyTranslation(float matrix[16], float x, float y, float z);
 void MatrixTranspose4x3(const float src[16], float dst[12]);
+void ProjectVector(const vec3_t src, const float matrix[16], vec3_t dst);
 
 qboolean RayVsBox (const vec3_t org, const vec3_t rcpdelta, const vec3_t mins, const vec3_t maxs, float *frac);
 
