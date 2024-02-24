@@ -877,11 +877,11 @@ void IN_ResetCurrentController (void)
 	prev_joy_led[1] = -1.f;
 	prev_joy_led[2] = -1.f;
 #if SDL_VERSION_ATLEAST(2, 0, 16)
+	// Reset to player index 1 and blue LED, default ones
+	SDL_GameControllerSetPlayerIndex (joy_active_controller, 0);
+	SDL_GameControllerSetLED (joy_active_controller, 0, 0, 64);
 	if (SDL_GameControllerGetType (joy_active_controller) == SDL_CONTROLLER_TYPE_PS5 )
 	{
-		// Reset to player index 1 and blue LED, default ones
-		SDL_GameControllerSetPlayerIndex (joy_active_controller, 0);
-		SDL_GameControllerSetLED (joy_active_controller, 0, 0, 64);
 		ds_effects_state[DS_ENABLE_BITS1] = (1<<2) | (1<<3); // Enable triggers effects setting
 		ds_effects_state[DS_RT_BYTES +  0] = tm_off;
 		ds_effects_state[DS_LT_BYTES +  0] = tm_off;
