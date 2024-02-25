@@ -738,9 +738,11 @@ void IN_SetupDSTrigger (qboolean right_trigger)
 			*ds_trigger_threshold = startpos / 10.f;
 			break;
 		case DS_TRIGGER_SIMPLE_FEEDBACK:
-			// Parameters don't seem to affect
-			startpos = CLAMP (0, startpos, 9) / 10 * 255;
-			strength = CLAMP (0, strength, 10) / 10 * 255;
+			startpos = CLAMP (0, startpos, 9);
+			strength = CLAMP (0, strength, 10);
+
+			startpos = (uint8_t)((float)startpos / 10 * 255);
+			strength = (uint8_t)((float)strength / 10 * 255);
 
 			ds_effects_state[trigger_byte_fields +  0] = tm_simple_feedback;
 			ds_effects_state[trigger_byte_fields +  1] = startpos;
@@ -757,10 +759,13 @@ void IN_SetupDSTrigger (qboolean right_trigger)
 			*ds_trigger_threshold = startpos / 255.f;
 			break;
 		case DS_TRIGGER_SIMPLE_WEAPON:
-			// Parameters don't seem to affect
-			startpos = CLAMP (0, startpos, 8) / 10 * 255;
-			endpos = CLAMP (startpos+1, endpos, 9) / 10 * 255;
-			strength = CLAMP (0, strength, 10) / 10 * 255;
+			startpos = CLAMP (0, startpos, 8);
+			endpos = CLAMP (startpos+1, endpos, 9);
+			strength = CLAMP (0, strength, 10);
+
+			startpos = (uint8_t)((float)startpos / 10 * 255);
+			endpos = (uint8_t)((float)endpos / 10 * 255);
+			strength = (uint8_t)((float)strength / 10 * 255);
 
 			ds_effects_state[trigger_byte_fields +  0] = tm_simple_weapon;
 			ds_effects_state[trigger_byte_fields +  1] = startpos;
@@ -777,9 +782,11 @@ void IN_SetupDSTrigger (qboolean right_trigger)
 			*ds_trigger_threshold = endpos / 255.f;
 			break;
 		case DS_TRIGGER_SIMPLE_VIBRATION:
-			// Broken, no vibration
-			startpos = CLAMP (0, startpos, 8) / 10 * 255;
-			strength = CLAMP (0, strength, 10) / 10 * 255;
+			startpos = CLAMP (0, startpos, 8);
+			strength = CLAMP (0, strength, 10);
+
+			startpos = (uint8_t)((float)startpos / 10 * 255);
+			strength = (uint8_t)((float)strength / 10 * 255);
 
 			ds_effects_state[trigger_byte_fields +  0] = tm_simple_vibration;
 			ds_effects_state[trigger_byte_fields +  1] = frequency;
@@ -797,8 +804,11 @@ void IN_SetupDSTrigger (qboolean right_trigger)
 			break;
 		case DS_TRIGGER_LIMITED_FEEDBACK:
 			// Broken, stops producing effect after first press
-			startpos = CLAMP (0, startpos, 9) / 10 * 255;
-			strength = CLAMP (1, strength, 10) / 10 * 255;
+			startpos = CLAMP (0, startpos, 9);
+			strength = CLAMP (1, strength, 10);
+
+			startpos = (uint8_t)((float)startpos / 10 * 255);
+			strength = (uint8_t)((float)strength / 10 * 255);
 
 			ds_effects_state[trigger_byte_fields +  0] = tm_limited_feedback;
 			ds_effects_state[trigger_byte_fields +  1] = startpos;
@@ -815,10 +825,12 @@ void IN_SetupDSTrigger (qboolean right_trigger)
 			*ds_trigger_threshold = startpos / 255.f;
 			break;
 		case DS_TRIGGER_LIMITED_WEAPON:
-			// Broken, stops producing effect after first press
-			startpos = CLAMP (0, startpos, 9) / 10 * 255;
-			endpos = CLAMP (0, endpos, 9) / 10 * 255;
-			strength = CLAMP (0, strength, 10) / 10 * 255;
+			startpos = CLAMP (0, startpos, 9);
+			endpos = CLAMP (0, endpos, 9);
+			strength = CLAMP (0, strength, 10);
+
+			startpos = (uint8_t)((float)startpos / 10 * 255);
+			endpos = (uint8_t)((float)endpos / 10 * 255);
 
 			startpos = CLAMP (16, startpos, 255 - 100 - 16);
 			endpos = CLAMP (startpos, endpos, startpos + 100);
