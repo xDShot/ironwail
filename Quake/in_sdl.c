@@ -1006,6 +1006,7 @@ static qboolean IN_UseController (int device_index)
 	q_strlcpy (joy_active_name, controllername, sizeof (joy_active_name));
 
 #if SDL_VERSION_ATLEAST(2, 0, 14)
+	SDL_GameControllerSetPlayerIndex (joy_active_controller, 0);
 	if (SDL_GameControllerHasLED (joy_active_controller))
 	{
 		led_present = true;
