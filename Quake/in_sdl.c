@@ -118,6 +118,11 @@ static int joy_active_device = -1;
 static SDL_GameController *joy_active_controller = NULL;
 static char joy_active_name[256];
 
+static qboolean haptic_init = false;
+static SDL_Haptic *joy_active_haptic = NULL;
+static qboolean haptic_present = false;
+static qboolean rumble_present = false;
+
 #if SDL_VERSION_ATLEAST(2, 0, 18)
 static qboolean hidapi_init = false;
 static SDL_hid_device *joy_active_hid = NULL;
@@ -964,6 +969,10 @@ static qboolean IN_UseController (int device_index)
 		if (device_index == -1)
 			Con_Printf ("Gamepad removed: %s\n", joy_active_name);
 
+		SDL_HapticClose(joy_active_haptic);
+		haptic_present = false;
+		rumble_present = false;
+
 		joy_active_name[0] = '\0';
 		joy_active_controller = NULL;
 		joy_active_instanceid = -1;
@@ -1004,6 +1013,34 @@ static qboolean IN_UseController (int device_index)
 	Cvar_SetValueQuick (&joy_device, device_index);
 	// Save controller name so we can print it when unplugged (SDL_GameControllerName would return NULL)
 	q_strlcpy (joy_active_name, controllername, sizeof (joy_active_name));
+
+	// Query for haptic interface support
+	SDL_Joystick* joystick = SDL_GameControllerGetJoystick (joy_active_controller);
+	if (!joystick) Con_Warning ("Failed to open SDL_Joystick *joystick: %s\n", SDL_GetError ());
+	if (haptic_init && SDL_JoystickIsHaptic (joystick))
+		joy_active_haptic = SDL_HapticOpenFromJoystick (joystick);
+
+	// Hack for DualSense controller
+	// SDL_HapticOpenFromJoystick fails to open haptics, but it's actually there
+	// Use Joy ID for haptic. This is certainly incorrect way
+	if (!joy_active_haptic && (SDL_GameControllerGetType (joy_active_controller) == SDL_CONTROLLER_TYPE_PS5))
+	{
+		joy_active_haptic = SDL_HapticOpen (joy_active_device);
+	}
+
+	if (joy_active_haptic)
+	{
+		haptic_present = true;
+		//TODO: blip haptic to ensure
+		Con_Printf ("Opened Haptics for %s\n", SDL_HapticName (SDL_HapticIndex (joy_active_haptic)));
+	}
+
+	// Query for gamecontroller rumble support
+	if (SDL_GameControllerRumble (joy_active_controller, 0x1000, 0xF000, 250) != -1)
+	{
+		rumble_present = true;
+		Con_Printf ("%s supports Rumble\n", joy_active_name);
+	}
 
 #if SDL_VERSION_ATLEAST(2, 0, 14)
 	SDL_GameControllerSetPlayerIndex (joy_active_controller, 0);
@@ -1107,6 +1144,15 @@ void IN_StartupJoystick (void)
 		return;
 	}
 	
+	if (SDL_InitSubSystem(SDL_INIT_HAPTIC) == -1 )
+	{
+		Con_Warning("could not initialize SDL Haptic\n");
+	}
+	else
+	{
+		haptic_init = true;
+	}
+	
 	// Load additional SDL2 controller definitions from gamecontrollerdb.txt
 	for (i = 0; i < com_numbasedirs; i++)
 	{
@@ -1135,6 +1181,7 @@ void IN_ShutdownJoystick (void)
 {
 	IN_ResetCurrentController ();
 	SDL_QuitSubSystem(SDL_INIT_GAMECONTROLLER);
+	SDL_QuitSubSystem(SDL_INIT_HAPTIC);
 }
 
 void IN_ShutdownHIDAPI (void)
