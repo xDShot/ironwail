@@ -23,7 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 
-extern edict_t *bbox_focus;
+extern edict_t **bbox_linked;
 
 int		type_size[8] = {
 	1,					// ev_void
@@ -234,9 +234,6 @@ FIXME: walk all entities and NULL out references to this entity
 */
 void ED_Free (edict_t *ed)
 {
-	if (ed == bbox_focus)
-		bbox_focus = NULL;
-
 	SV_UnlinkEdict (ed);		// unlink from world bsp
 	ED_AddToFreeList (ed);
 
@@ -1028,12 +1025,15 @@ static void ED_PrintEdict_Completion_f (const char *partial)
 	qcvm_t	*oldqcvm;
 	int		i;
 
-	if (!sv.active || Cmd_Argc () > 2 || !bbox_focus || bbox_focus->free)
+	if (!sv.active || Cmd_Argc () > 2 || VEC_SIZE (bbox_linked) == 0)
 		return;
 
 	PR_PushQCVM (&sv.qcvm, &oldqcvm);
-	i = NUM_FOR_EDICT (bbox_focus);
-	Con_AddToTabList (va ("%d", i), partial, PR_GetString (bbox_focus->v.classname));
+	for (i = 0; i < (int) VEC_SIZE (bbox_linked); i++)
+	{
+		edict_t *ed = bbox_linked[i];
+		Con_AddToTabList (va ("%d", NUM_FOR_EDICT (ed)), partial, PR_GetString (ed->v.classname));
+	}
 	PR_PopQCVM (oldqcvm);
 }
 
@@ -1916,6 +1916,42 @@ static void PR_FindSavegameFields (void)
 
 /*
 ===============
+PR_FindEntityFields
+
+Finds all the .entity fields (used by r_showbboxes & co for identifying entity links)
+===============
+*/
+static void PR_FindEntityFields (void)
+{
+	int i, count;
+
+	count = 0;
+	for (i = 1; i < qcvm->progs->numfielddefs; i++)
+	{
+		ddef_t *field = &qcvm->fielddefs[i];
+		if ((field->type & ~DEF_SAVEGLOBAL) == ev_entity)
+			count++;
+	}
+
+	qcvm->numentityfields = count;
+	qcvm->entityfieldofs = (int *) Hunk_AllocName (qcvm->numentityfields * sizeof (int), "entityfieldofs");
+	qcvm->entityfields = (ddef_t **) Hunk_AllocName (qcvm->numentityfields * sizeof (ddef_t*), "entityfields");
+
+	count = 0;
+	for (i = 1; i < qcvm->progs->numfielddefs; i++)
+	{
+		ddef_t *field = &qcvm->fielddefs[i];
+		if ((field->type & ~DEF_SAVEGLOBAL) == ev_entity)
+		{
+			qcvm->entityfieldofs[count] = field->ofs*4;
+			qcvm->entityfields[count] = field;
+			count++;
+		}
+	}
+}
+
+/*
+===============
 PR_LoadProgs
 ===============
 */
@@ -2066,6 +2102,7 @@ qboolean PR_LoadProgs (const char *filename, qboolean fatal)
 	PR_PatchRereleaseBuiltins ();
 	PR_EnableExtensions ();
 	PR_FindSavegameFields ();
+	PR_FindEntityFields ();
 
 	qcvm->effects_mask = PR_FindSupportedEffects ();
 

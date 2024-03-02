@@ -165,6 +165,8 @@ void Vec_Append (void **pvec, size_t element_size, const void *data, size_t coun
 void Vec_Clear (void **pvec);
 void Vec_Free (void **pvec);
 
+void MultiString_Append (char **pvec, const char *str);
+
 //============================================================================
 
 static inline qboolean GetBit (const uint32_t *arr, uint32_t i)

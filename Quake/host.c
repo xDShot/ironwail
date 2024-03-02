@@ -613,8 +613,7 @@ not reinitialize anything.
 */
 void Host_ClearMemory (void)
 {
-	extern edict_t *bbox_focus;
-	bbox_focus = NULL;
+	R_ClearBoundingBoxes ();
 
 	if (cl.qcvm.extfuncs.CSQC_Shutdown)
 	{

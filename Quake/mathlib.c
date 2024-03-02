@@ -248,7 +248,7 @@ void AngleVectors (vec3_t angles, vec3_t forward, vec3_t right, vec3_t up)
 	up[2] = cr*cp;
 }
 
-int VectorCompare (vec3_t v1, vec3_t v2)
+int VectorCompare (const vec3_t v1, const vec3_t v2)
 {
 	int		i;
 
@@ -264,6 +264,13 @@ void VectorMA (const vec3_t veca, float scale, const vec3_t vecb, vec3_t vecc)
 	vecc[0] = veca[0] + scale*vecb[0];
 	vecc[1] = veca[1] + scale*vecb[1];
 	vecc[2] = veca[2] + scale*vecb[2];
+}
+
+void VectorLerp (const vec3_t veca, const vec3_t vecb, float frac, vec3_t dst)
+{
+	dst[0] = LERP (veca[0], vecb[0], frac);
+	dst[1] = LERP (veca[1], vecb[1], frac);
+	dst[2] = LERP (veca[2], vecb[2], frac);
 }
 
 
@@ -782,6 +789,7 @@ ProjectVector
 */
 void ProjectVector(const vec3_t src, const float matrix[16], vec3_t dst)
 {
+	float z;
 	vec4_t proj;
 
 	proj[0] = matrix[3*4 + 0];
@@ -804,8 +812,10 @@ void ProjectVector(const vec3_t src, const float matrix[16], vec3_t dst)
 	proj[2] += src[2]*matrix[2*4 + 2];
 	proj[3] += src[2]*matrix[2*4 + 3];
 
-	dst[0] = proj[0] / proj[3];
-	dst[1] = proj[1] / proj[3];
+	z = fabs (proj[3]);
+
+	dst[0] = proj[0] / z;
+	dst[1] = proj[1] / z;
 	dst[2] = proj[3];
 }
 

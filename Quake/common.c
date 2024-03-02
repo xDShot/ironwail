@@ -210,6 +210,11 @@ void Vec_Free (void **pvec)
 	}
 }
 
+void MultiString_Append (char **pvec, const char *str)
+{
+	Vec_Append ((void **)pvec, 1, str, strlen (str) + 1);
+}
+
 /*
 ============================================================================
 

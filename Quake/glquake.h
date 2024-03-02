@@ -444,6 +444,8 @@ void R_DrawSpriteModels_ShowTris (entity_t **ents, int count);
 
 entity_t **R_GetVisEntities (modtype_t type, qboolean translucent, int *outcount);
 
+void R_ClearBoundingBoxes (void);
+
 #define MAX_BMODEL_DRAWS		4096
 #define MAX_BMODEL_INSTANCES	1024
 
