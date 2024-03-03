@@ -65,6 +65,8 @@ cvar_t	joy_exponent_move = { "joy_exponent_move", "2", CVAR_ARCHIVE };
 cvar_t	joy_swapmovelook = { "joy_swapmovelook", "0", CVAR_ARCHIVE };
 cvar_t	joy_device = { "joy_device", "0", CVAR_ARCHIVE };
 
+cvar_t joy_vibration = {"joy_vibration", "2", CVAR_ARCHIVE}; // 1 - rumble; 2 - rumble+haptics
+
 cvar_t gyro_enable = {"gyro_enable", "1", CVAR_ARCHIVE};
 cvar_t gyro_mode = {"gyro_mode", "0", CVAR_ARCHIVE}; // see gyromode_t
 cvar_t gyro_turning_axis = {"gyro_turning_axis", "0", CVAR_ARCHIVE};
@@ -376,6 +378,36 @@ void IN_DeactivateForConsole (void)
 void IN_DeactivateForMenu (void)
 {
 	IN_Deactivate(modestate == MS_WINDOWED || ui_mouse.value);
+}
+
+void IN_Vibrate (void)
+{
+	static qboolean wasonground = true;
+	qboolean gun_kicked = false;
+	static vec3_t prev_punchangle = {0.f, 0.f, 0.f};
+
+	for (int i=0; i<3; i++)
+	{
+		if (cl.punchangle[i] > prev_punchangle[i])
+		{
+			gun_kicked = true;
+		}
+		prev_punchangle[i] = cl.punchangle[i];
+	}
+
+	if (IN_HasRumble () && (joy_vibration.value > 0))
+	{
+		if (cl.onground && !wasonground)
+		{
+			SDL_GameControllerRumble (joy_active_controller, 0x1000, 0, 200);
+		}
+		if (gun_kicked)
+		{
+			SDL_GameControllerRumble (joy_active_controller, 0, 0x1000, 100);
+		}
+	}
+
+	wasonground = cl.onground;
 }
 
 #if SDL_VERSION_ATLEAST(2, 0, 14)
@@ -1299,6 +1331,8 @@ void IN_Init (void)
 	Cvar_SetCallback(&joy_device, Joy_Device_f);
 	Cvar_SetCompletion(&joy_device, Joy_Device_Completion_f);
 
+	Cvar_RegisterVariable(&joy_vibration);
+
 	Cvar_RegisterVariable(&gyro_enable);
 	Cvar_RegisterVariable(&gyro_mode);
 	Cvar_RegisterVariable(&gyro_turning_axis);
@@ -2103,6 +2137,16 @@ static void IN_UpdateGyroCalibration (void)
 	}
 }
 
+qboolean IN_HasHaptic (void)
+{
+	return haptic_present;
+}
+
+qboolean IN_HasRumble (void)
+{
+	return rumble_present;
+}
+
 qboolean IN_HasGyro (void)
 {
 	return gyro_present;
@@ -2282,6 +2326,7 @@ void IN_SendKeyEvents (void)
 		}
 	}
 
+	IN_Vibrate ();
 	IN_UpdateGyroCalibration ();
 #if SDL_VERSION_ATLEAST(2, 0, 14)
 	IN_UpdateLED ();
