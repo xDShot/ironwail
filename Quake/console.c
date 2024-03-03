@@ -1730,7 +1730,7 @@ static void Con_PrintTabList (void)
 	tab_t	*t;
 
 // determine maximum item length
-	maxlen = 0;
+	matches = maxlen = 0;
 	t = tablist;
 	do
 	{
@@ -1738,6 +1738,7 @@ static void Con_PrintTabList (void)
 		total = (int) strlen (buf);
 		maxlen = q_max (maxlen, total);
 		t = t->next;
+		++matches;
 	} while (t != tablist);
 
 // determine number of columns
@@ -1749,10 +1750,12 @@ static void Con_PrintTabList (void)
 	cols = q_max (con_linewidth, maxlen) / maxlen;
 	if (con_maxcols.value >= 1.f)
 		cols = q_min (cols, (int) con_maxcols.value);	// apply user limit
+	if (matches < 6)									// single column if fewer than 6 matches
+		cols = 1;
 
 // print all matches
 	Con_SafePrintf("\n");
-	i = matches = total = 0;
+	i = total = 0;
 	t = tablist;
 	do
 	{
@@ -1767,7 +1770,6 @@ static void Con_PrintTabList (void)
 		if (t->type && t->type[0] == '#' && !t->type[1])
 			total += t->count;
 		t = t->next;
-		++matches;
 	} while (t != tablist);
 	if (i != 0)
 		Con_SafePrintf ("\n");
